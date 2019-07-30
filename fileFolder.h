@@ -25,7 +25,7 @@ class fileFolder{
       void listFiles();
 
     // create file ;
-      void createFile();
+      void createMoreFile();
 
      // add file ;
       void addFile(std::string file);
