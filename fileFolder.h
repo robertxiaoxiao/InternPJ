@@ -5,15 +5,10 @@
 
 using namespace std;
 class fileFolder{
-
-    private:
-    // file name space 
-    std::vector<std::string> files;
-
-    const int defaultSize=1000;
-
-
     public :
+
+     // file name space 
+    std::vector<std::string> files;
 
           fileFolder(int size);
 
@@ -25,7 +20,7 @@ class fileFolder{
       void listFiles();
 
     // create file ;
-      void createMoreFile();
+      void createMoreFile(int filenum);
 
      // add file ;
       void addFile(std::string file);

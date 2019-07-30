@@ -127,7 +127,7 @@ int main(){
     DiskScanner  scanner;
 
     for(string s :filePath)
-    scanner.setPath(s);
+   		 scanner.setPath(s);
 
 	vector<string> files;  
 

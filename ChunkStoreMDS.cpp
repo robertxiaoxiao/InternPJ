@@ -8,9 +8,8 @@
 #include "FileFolder.cpp"
 #include <algorIThm>
 #include <functional>
-
+#include "ChunkStoreMDS.h"
 using namespace std;
-// basic fileInfo  as one FileSet-table row
 struct fileInfo
 {
 
@@ -18,13 +17,13 @@ struct fileInfo
         string filepath;
 
         //  check free and ctrl file access
-        bool Beusing;
+        bool  Beusing;
 
         // help to recover client's filelist info
         string owner;
 
         // writen size  for balance
-        long offset;
+        long   offset;
 };
 
 // client request message
@@ -83,7 +82,11 @@ public:
         ~ChunkStoreMDS();
 
         //init
-        static void staticInit();
+        void staticInit(fileFolder holder){
+
+                fholder=holder;
+
+        };
 
         // print MDS info
         void printState();
@@ -95,7 +98,7 @@ public:
         void deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileList, BALANCE_POLICY policy);
 
         // to sense the capacity of rest files and prepare to ask for more files
-        void senseCapcity();
+        void senseCapcity(double restrate);
 
         // add files in filelist and fholder nonsyc update ;
         void AskMoreFilesTimely();
@@ -272,6 +275,7 @@ void ChunkStoreMDS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileLis
                 {
                         //deliver files to others according to the writen storage
                         fileInfo f = restfilelist.back();
+                        restfilelist.pop_back();
                         f.owner = owner;
                         usingfilelist.push_back(f);
                 }
@@ -286,14 +290,62 @@ void ChunkStoreMDS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileLis
         }
 };
 
+#define deafult_Asking_File_Size 10
 
 // called by other function explicitly  and rate to optimize the asking file times
-void ChunkStoreMDS::AskMoreFilesForcibly(int rate){
+void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
+{
 
+        // get more file in folder
+        fholder.createMoreFile(deafult_Asking_File_Size * rate);
 
+        // start sync
+        // catch any errors
+        try
+        {
+                sync = 1;
+                vector<string> &tempList = fholder.files;
+                for (int i = 0; i < deafult_Asking_File_Size * rate; i++)
+                {
+                        // init free file
+                        fileInfo temp{tempList.back(), false, "", 0};
+                        tempList.pop_back();
+                        restfilelist.push_back(temp);
+                }
 
-
-
-
-
+                // sync reset
+                sync = 0;
+        }
+        catch (...)
+        {
+                sync = 0;
+        }
 }
+
+// timely check for more files
+// for windows timer call
+void ChunkStoreMDS::AskMoreFilesTimely()
+{
+        fholder.createMoreFile(deafult_Asking_File_Size);
+        vector<string> &tempList = fholder.files;
+        for (int i = 0; i < deafult_Asking_File_Size; i++)
+        {
+                // init free file
+                fileInfo temp{tempList.back(), false, "", 0};
+                tempList.pop_back();
+                restfilelist.push_back(temp);
+        }
+}
+
+// self-sense and ask for files 
+void ChunkStoreMDS::senseCapcity(double rest_rate)
+{
+        if(usingfilelist.size==0)
+                return;
+
+
+        if ((double) restfilelist.size / usingfilelist.size < rest_rate)
+                AskMoreFilesForcibly(default_rate*10);
+                 
+}
+

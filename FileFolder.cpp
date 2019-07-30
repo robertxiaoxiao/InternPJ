@@ -44,11 +44,12 @@ string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
         
     }
 
-    // ask for other api to get files
-    void fileFolder::createFile(){
-        for(string  s: testFiles)
+    // ask for other api to get files  just for test
+    void fileFolder::createMoreFile(int filenum){
+        string suffix=".ccc";
+        for(int i=0;i<filenum;i++)
         {
-                addFile(s);
+                addFile((char)i+suffix);
         }
 
     }
@@ -103,7 +104,7 @@ string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
 
         fileFolder  s2;
         
-        s2.createFile();
+        s2.createMoreFile(10);
         s2.listFiles();
         s2.checkFileContained("1.ccc");
         s2.checkFileContained("4.ccc");

@@ -1,15 +1,31 @@
 
 #include <windows.h>
-#include <threadpoolapiset.h>
 #include <iostream>
+#include <thread>
+//#include "ChunkStoreMDS.cpp"
+using  namespace std ;
+class A{
 
+   public:
+     void sayhello(){
+
+            std::cout<<"hello  ,world"<<std::endl;
+   }
+
+};
 class ChunkStoreMDSManager
 {
 
 public:
 
 
- //  ChunkStoreMDS csMDS;
+     // static ChunkStoreMDS csMDS;
+    static A a;
+
+
+    void autoAskFiles();
+
+
 
     //
     // bool Caa::init()
@@ -34,28 +50,32 @@ public:
 };
 
 
+A  ChunkStoreMDSManager::a;
 
+// using windowsAPI timer 
 VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTime); 
+
 VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTime) 
 
 { 
-std::cout   <<   "hello "   <<   std::endl; 
+      ChunkStoreMDSManager m;
+        m.a.sayhello();
 } 
 
 
-int main()
-{
-   
-         int timer1 = 1;
-         HWND hwndTimer;
-         MSG msg;
+// new threa autoAskFiles ;
 
+void ChunkStoreMDSManager::autoAskFiles(){
+    
+    int timer1 = 1;
+    HWND hwndTimer;
+    MSG msg;
 
     // 调用另一个对象的方法
     
      SetTimer(NULL, timer1, 5000, TimerProc);
 
-      int itemp;
+    int itemp;
 
     while ((itemp = GetMessage(&msg, NULL, NULL, NULL)) && (itemp != 0) && (-1 != itemp))
     {
@@ -67,7 +87,27 @@ int main()
         }
     }
   
+}
+
+void print(){
+
+    cout<<"hello   world"<<std::endl;
+
+}
 
 
+int main()
+{
+    ChunkStoreMDSManager  m;
+    
+    std::thread  t(m.autoAskFiles);
+
+    t.join();
+
+    std::thread  t2(print);
+
+    t2.join();
+
+     
     return 0;
 }
