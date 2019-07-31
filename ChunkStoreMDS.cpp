@@ -8,7 +8,6 @@
 #include "FileFolder.cpp"
 #include <algorIThm>
 #include <functional>
-#include "ChunkStoreMDS.h"
 using namespace std;
 struct fileInfo
 {
@@ -17,13 +16,13 @@ struct fileInfo
         string filepath;
 
         //  check free and ctrl file access
-        bool  Beusing;
+        bool Beusing;
 
         // help to recover client's filelist info
-        string owner;
+        char *owner;
 
         // writen size  for balance
-        long   offset;
+        long offset;
 };
 
 // client request message
@@ -57,6 +56,13 @@ typedef enum
 
 } BALANCE_POLICY;
 
+struct client_Recovery_MSG
+{
+        /* data */
+        char *owner;
+        vector<fileInfo> ownedFileList;
+};
+
 class ChunkStoreMDS
 {
 
@@ -82,17 +88,17 @@ public:
         ~ChunkStoreMDS();
 
         //init
-        void staticInit(fileFolder holder){
+        void staticInit(fileFolder holder)
+        {
 
-                fholder=holder;
-
+                fholder = holder;
         };
 
         // print MDS info
         void printState();
 
         // mark file at one's own
-        void markOwned(char *filename, char *owner);
+        void markOwned(string filename, char *owner);
 
         //to deliver files based on specific policy  and must support concurrent ops
         void deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileList, BALANCE_POLICY policy);
@@ -113,16 +119,24 @@ public:
         void AskMoreFilesForcibly(int rate);
 
         // update fileinfo based on client writing-complete callback ;
-        void updateFilelist(vector<fileInfo> &writenFiles);
+        void updateFilelist(Return_MSG msg);
 
         //  to serach and modify file info  and markowned call this func
         // if write-file succeeds and modify the offset;
-        fileInfo *ModifyFileinfo(char *filename);
+        fileInfo *ModifyFileinfo(string filename);
+
+        void resetFileinfo(string filename);
 
         // write info succeed only in accepting return value and otherwise reset the  offset;
-        void AotomicOPs(char *filename);
+        void AotomicOPs(string filename);
+
+        // migrate  fromlist to to list
+        void migrateFileToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist, string filename);
 
         bool checkIfMeetNeed(size_t restsize, int askFiles, int rate);
+
+        // just for test
+        client_Recovery_MSG Client_Revocer_Help(char *owner);
 };
 
 ChunkStoreMDS::~ChunkStoreMDS()
@@ -134,7 +148,7 @@ ChunkStoreMDS::~ChunkStoreMDS()
 }
 
 // mark the file  owned
-void ChunkStoreMDS::markOwned(char *filename, char *owner)
+void ChunkStoreMDS::markOwned(string filename, char *owner)
 {
 
         //get the reference of specific file
@@ -149,6 +163,9 @@ void ChunkStoreMDS::markOwned(char *filename, char *owner)
         else
         {
                 temp->owner = owner;
+
+                migrateFileToList(restfilelist, usingfilelist, filename);
+
                 printf("mark owner successfully \r\n");
         }
 
@@ -158,8 +175,14 @@ exit:
         return;
 }
 
+void ChunkStoreMDS::migrateFileToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist, string filename)
+{
+
+        // to do
+}
+
 // get specific file addr to modify
-fileInfo *ChunkStoreMDS::ModifyFileinfo(char *filename)
+fileInfo *ChunkStoreMDS::ModifyFileinfo(string filename)
 {
 
         for (fileInfo f : usingfilelist)
@@ -167,8 +190,33 @@ fileInfo *ChunkStoreMDS::ModifyFileinfo(char *filename)
                 if (f.filepath.compare(filename) == 0)
                         return &f;
         }
+
+        for (fileInfo f : restfilelist)
+        {
+                if (f.filepath.compare(filename) == 0)
+                        return &f;
+        }
+
         // not found
         return NULL;
+}
+
+// clear file owner
+void ChunkStoreMDS::resetFileinfo(string filename)
+{
+
+        for (size_t i = 0; i < usingfilelist.size(); i++)
+        {
+                /* code */
+                fileInfo &temp = usingfilelist.at(i);
+                if (temp.filepath == filename)
+                {
+                        printf("reset file :%s .....  \r\n", temp.filepath);
+                        usingfilelist.erase(usingfilelist.begin() + i);
+                        printf("reset file  completed .....  \r\n");
+                        return;
+                }
+        }
 }
 
 // print MDS info
@@ -305,11 +353,14 @@ void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
         {
                 sync = 1;
                 vector<string> &tempList = fholder.files;
+
+                int size = tempList.size();
+
                 for (int i = 0; i < deafult_Asking_File_Size * rate; i++)
                 {
                         // init free file
-                        fileInfo temp{tempList.back(), false, "", 0};
-                        tempList.pop_back();
+                        fileInfo temp{tempList.at(size - 1 - i), false, "", 0};
+
                         restfilelist.push_back(temp);
                 }
 
@@ -337,15 +388,94 @@ void ChunkStoreMDS::AskMoreFilesTimely()
         }
 }
 
-// self-sense and ask for files 
+// self-sense and ask for files
 void ChunkStoreMDS::senseCapcity(double rest_rate)
 {
-        if(usingfilelist.size==0)
+        if (usingfilelist.size == 0)
                 return;
 
+        if ((double)(restfilelist.size / usingfilelist.size) < rest_rate)
+        {
+                printf("current state  : need to balance  \r\n");
+                printf("balance proceeding.....  \r\n");
+                AskMoreFilesForcibly(default_rate * 10);
 
-        if ((double) restfilelist.size / usingfilelist.size < rest_rate)
-                AskMoreFilesForcibly(default_rate*10);
-                 
+                printf("balance completed.....  \r\n");
+        }
+
+        else
+        {
+                printf("current state  :  well  \r\n");
+                return;
+        }
 }
 
+//  static init fholder for the first call
+
+// entire filehoder sync with  restfilelist
+//   1   HolderAutoUpdate   copy all file into restfilelist
+//   2   AskMoreFilesForcibly  or AskMoreFilestimely  push_back into the restfilelist ;
+
+void ChunkStoreMDS::HolderAutoUpdate()
+{
+        vector<string> &tempList = fholder.files;
+
+        int size = tempList.size();
+
+        for (size_t i = 0; i < size; i++)
+        { //update restfilelist
+                restfilelist.push_back(fileInfo{tempList.at(i), false, "", 0});
+        }
+
+        printf("first init completed.....  \r\n");
+}
+
+void ChunkStoreMDS::fileHolderRecover()
+{
+
+        // to do
+}
+
+// to receive client info and update
+void ChunkStoreMDS::updateFilelist(Return_MSG msg)
+{
+
+        char *owner = msg.owner;
+        //  client inits the writen file info  such as offset
+        vector<fileInfo> &writenFiles = msg.files;
+
+        for (fileInfo finfo : writenFiles)
+        {
+                /* code */
+                fileInfo *temp = ModifyFileinfo(finfo.filepath);
+
+                temp->owner = "";
+
+                // file.offset set by client
+
+                restfilelist.push_back(*temp);
+
+                // to optimize
+                resetFileinfo(temp->filepath);
+        }
+}
+
+// to recover client fileinfo
+client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
+{
+
+        client_Recovery_MSG m = {};
+        m.owner = owner;
+
+        for (fileInfo finfo : usingfilelist)
+        {
+
+                if (strcmp(owner, finfo.owner) == 0)
+                        // the last call state and may casue  inconsistency
+                        m.ownedFileList.push_back(finfo);
+        }
+
+        printf("client: %s   recovery  completed.....  \r\n", owner);
+
+        return m;
+}

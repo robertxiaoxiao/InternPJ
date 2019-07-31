@@ -4,12 +4,19 @@
 #include <thread>
 //#include "ChunkStoreMDS.cpp"
 using  namespace std ;
+
+
+
 class A{
 
    public:
-     void sayhello(){
 
-            std::cout<<"hello  ,world"<<std::endl;
+     int i =0;
+
+     void sayhello(){
+            // auto incre
+            i+=10;
+            std::cout<<"hello  ,world"<<i<<std::endl;
    }
 
 };
@@ -20,9 +27,9 @@ public:
 
 
      // static ChunkStoreMDS csMDS;
-    static A a;
+   // static ChunkStoreMDS   MDS;
 
-
+    static A a ;
     void autoAskFiles();
 
 
@@ -50,7 +57,8 @@ public:
 };
 
 
-A  ChunkStoreMDSManager::a;
+A ChunkStoreMDSManager::a;
+
 
 // using windowsAPI timer 
 VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTime); 
@@ -59,7 +67,7 @@ VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTim
 
 { 
       ChunkStoreMDSManager m;
-        m.a.sayhello();
+      m.a.sayhello();
 } 
 
 
@@ -73,7 +81,7 @@ void ChunkStoreMDSManager::autoAskFiles(){
 
     // 调用另一个对象的方法
     
-     SetTimer(NULL, timer1, 5000, TimerProc);
+    SetTimer(NULL, timer1, 2000, TimerProc);
 
     int itemp;
 
@@ -91,23 +99,35 @@ void ChunkStoreMDSManager::autoAskFiles(){
 
 void print(){
 
-    cout<<"hello   world"<<std::endl;
+    cout<<"hello  world"<<std::endl;
 
 }
 
 
 int main()
 {
+   
     ChunkStoreMDSManager  m;
-    
-    std::thread  t(m.autoAskFiles);
-
-    t.join();
 
     std::thread  t2(print);
 
+   
+
+
+    m.autoAskFiles();
+    
+   // std::thread  t(&ChunkStoreMDSManager::autoAskFiles,m);
+
+  //  t.join();
     t2.join();
 
+
+    Sleep(5000);
+    
+    std::thread  t3(print);
+    t3.join();
+
+ 
      
     return 0;
 }
