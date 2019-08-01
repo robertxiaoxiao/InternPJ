@@ -1,6 +1,9 @@
-
-#include <windows.h>
+#include <stdio.h>
 #include <iostream>
+#include <vector>
+#include <string.h>
+#include <future>
+#include<Windows.h>
 #include <thread>
 //#include "ChunkStoreMDS.cpp"
 using  namespace std ;
@@ -15,11 +18,21 @@ class A{
 
      void sayhello(){
             // auto incre
-            i+=10;
-            std::cout<<"hello  ,world"<<i<<std::endl;
+        
+            while(true)
+                {
+                    std::cout<<"hello  ,world"<<i++<<std::endl;
+
+                    Sleep(2000);
+                }
    }
 
+
+  
+
 };
+
+
 class ChunkStoreMDSManager
 {
 
@@ -29,7 +42,7 @@ public:
      // static ChunkStoreMDS csMDS;
    // static ChunkStoreMDS   MDS;
 
-    static A a ;
+ static  A a ;
     void autoAskFiles();
 
 
@@ -81,53 +94,51 @@ void ChunkStoreMDSManager::autoAskFiles(){
 
     // 调用另一个对象的方法
     
-    SetTimer(NULL, timer1, 2000, TimerProc);
+    // SetTimer(NULL, timer1, 2000, TimerProc);
 
-    int itemp;
+    // int itemp;
 
-    while ((itemp = GetMessage(&msg, NULL, NULL, NULL)) && (itemp != 0) && (-1 != itemp))
-    {
-        if (msg.message == WM_TIMER)
-        {
-            std::cout << "i  got  the  message " << std::endl;
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+    // while ((itemp = GetMessage(&msg, NULL, NULL, NULL)) && (itemp != 0) && (-1 != itemp))
+    // {
+    //     if (msg.message == WM_TIMER)
+    //     {
+    //         std::cout << "i  got  the  message " << std::endl;
+    //         TranslateMessage(&msg);
+    //         DispatchMessage(&msg);
+    //     }
+    // }
+   
   
 }
 
 void print(){
 
-    cout<<"hello  world"<<std::endl;
-
+while(true){
+    cout<<"hello  exhcange"<<std::endl;
+    Sleep(4000);
+}
 }
 
 
 int main()
 {
    
-    ChunkStoreMDSManager  m;
+     A  a;
 
-    std::thread  t2(print);
+     thread   t(&A::sayhello,a);
+     
+     std::thread  t3(print);
+     t.join();
 
-   
-
-
-    m.autoAskFiles();
-    
+  
    // std::thread  t(&ChunkStoreMDSManager::autoAskFiles,m);
 
   //  t.join();
-    t2.join();
+  
 
-
-    Sleep(5000);
-    
-    std::thread  t3(print);
     t3.join();
 
- 
-     
+
+    
     return 0;
 }

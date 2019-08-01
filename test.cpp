@@ -3,9 +3,12 @@
 #include <vector>
 #include <string.h>
 #include <future>
+#include<Windows.h>
 #include <thread>
 using namespace std;
 
+
+int i=0;
 struct inum
 {
     int i;
@@ -28,24 +31,77 @@ inum geti(int i  ){
 
 }
 
-void print(int i){
-    cout<< i<<"hello    world\r\n"<<std::endl;
+void print(){
+    while(true)
+            {  cout<< i++<<"hello    world\r\n"<<std::endl;
+                    Sleep(50);
+            }
 
+}
+
+void printI(){
+    while(true)
+            {  cout<< i++<<"thread exchange\r\n"<<std::endl;
+                    Sleep(50);
+            }
+
+}
+
+//线程池的回调函数
+VOID WINAPI ThreadPoolCallBack(PTP_CALLBACK_INSTANCE instance, PVOID param)
+{
+    cout << "param:" << (int)param << "\tThread id = " << GetCurrentThreadId() << endl;
+    Sleep(200); // 模拟一个任务时间为100毫秒的执行
+    return;
+}
+
+DWORD GetNumOfProcess()// 获取CPU的核心数
+{
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);                    // 获取操作系统信息
+    return sysinfo.dwNumberOfProcessors;
 }
 
 int main(){
 
+//  PTP_POOL tPool;
+//     tPool = CreateThreadpool(NULL);             // 创建一个线程池
 
+//     DWORD dwMaxThread = 3;                      // GetNumOfProcess() * 2 + 1;
+//     //设置线程池参数（线程池中的线程数)
+//     SetThreadpoolThreadMaximum(tPool, dwMaxThread); // 线程池中最多线程数
+//     SetThreadpoolThreadMinimum(tPool, 1);       // 线程池中最少线程数
 
-        std::thread  ts[10];
+//     TP_CALLBACK_ENVIRON tcEnv;
+//     InitializeThreadpoolEnvironment(&tcEnv);    // 初始化线程池的回调环境
+//     SetThreadpoolCallbackPool(&tcEnv, tPool);   // 给线程池分配回调环境
 
-        for(int i=0;i<10;i++)    
-                ts[i]=thread(print,i);
+//     cout << "线程池中的线程数为：" << dwMaxThread << endl << endl;
+//     //测试例子
+//     for (int i = 1;i < 20;i++)
+//     {
+//         // 向线程池中投递一个任务
+//         TrySubmitThreadpoolCallback(ThreadPoolCallBack, (PVOID)i, &tcEnv);
+//     }
 
-        auto fr0 = async([](){cout << "Welcome to async" << endl;});
+        // std::thread  ts[10];
+
+        // for(int i=0;i<10;i++)    
+        //         ts[i]=thread(print,i);
+
+        // auto fr0 = async([](){cout << "Welcome to async" << endl;});
         
-        for(int i=0;i<10;i++)  
-                ts[i].join();
+        // for(int i=0;i<10;i++)  
+        //         ts[i].join();
+        // fr0.get();
+         thread   t1(print);
+
+         thread   t2(printI);
+         t1.join();
+         t2.join();
+
+
+        
         // inum t=geti(5);
         // cout<< t.i<<std::endl;
         
@@ -64,8 +120,7 @@ int main(){
         // cout<< strcmp(t1,t3)<<std::endl;
 
  
- fr0.get();
-
+ 
  return 0;
     // std::vector<int>   list;
     // for(int i=0;i<10;i++)

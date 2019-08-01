@@ -460,7 +460,7 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
         }
 }
 
-// to recover client fileinfo
+// to recover client fileinfo  just for test
 client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
 {
 
@@ -479,3 +479,7 @@ client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
 
         return m;
 }
+
+
+
+//
