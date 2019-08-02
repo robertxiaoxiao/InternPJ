@@ -5,6 +5,7 @@
 #include <future>
 #include<Windows.h>
 #include <thread>
+#include <functional>
 using namespace std;
 
 
@@ -33,9 +34,9 @@ inum geti(int i  ){
 
 void print(){
     while(true)
-            {  cout<< i++<<"hello    world\r\n"<<std::endl;
+       {  cout<< i++<<"hello    world\r\n"<<std::endl;
                     Sleep(50);
-            }
+       }
 
 }
 
@@ -62,8 +63,26 @@ DWORD GetNumOfProcess()// 获取CPU的核心数
     return sysinfo.dwNumberOfProcessors;
 }
 
-int main(){
 
+#include<mutex>
+
+std::mutex mtx;           
+void print_thread_id (int id) {
+  // critical section (exclusive access to std::cout signaled by locking mtx):
+  mtx.lock();
+  std::cout << "thread #" << id << '\n';
+  mtx.unlock();
+}
+
+int main(){
+          std::thread threads[10];
+  // spawn 10 threads:
+  for (int i=0; i<10; ++i)
+    threads[i] = std::thread(print_thread_id,i+1);
+
+    for (auto& th : threads) th.join();
+      
+          
 //  PTP_POOL tPool;
 //     tPool = CreateThreadpool(NULL);             // 创建一个线程池
 
@@ -94,14 +113,12 @@ int main(){
         // for(int i=0;i<10;i++)  
         //         ts[i].join();
         // fr0.get();
-         thread   t1(print);
+        //  thread   t1(print);
 
-         thread   t2(printI);
-         t1.join();
-         t2.join();
-
-
-        
+        //  thread   t2(printI);
+        //  t1.join();
+        //  t2.join();
+       
         // inum t=geti(5);
         // cout<< t.i<<std::endl;
         

@@ -432,7 +432,6 @@ void ChunkStoreMDS::HolderAutoUpdate()
 
 void ChunkStoreMDS::fileHolderRecover()
 {
-
         // to do
 }
 

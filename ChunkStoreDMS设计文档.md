@@ -1,4 +1,4 @@
-ChunkStoreDMS设计文档 
+ChunkStoreMDS设计文档 
 
 #### 一  架构图
 
@@ -12,7 +12,7 @@ ChunkStoreDMS设计文档
 
 ##### 1.2 设计架构
 
-​	  	添加ChunkStoreMDS模块后，架构变成如下图所示。每个Client先通过MDSclient通过rpc调用DMSsvc,
+​	  	添加ChunkStoreMDS模块后，架构变成如下图所示。每个Client先通过MDSclient通过rpc调用MDSsvc,
 
 请求需要数量的可写入的ChunkStore文件路径集合，根据返回的文件路径集合，通过调用Blbclient中暴露的chunkStoreLibrary相关接口来初始化对应的ChunkStore，并进行相关的insert(),read(),GC(),delete()操作。
 
@@ -36,7 +36,7 @@ ChunkStoreDMS设计文档
 
 ######	2.2.2 Read 流程：
 
-  	   当前Blbsvc本地持有chunkstore实例读写过的文件路径，当加入chunkStoreDMS之后，存在可能把文件路径返还的情况（测试可做简化处理，将读写过的文件路径写入磁盘文件上，直接在磁盘文件上查找，现有的chunkstore.read()是在当前目录下持有路径中查找，需要扩展store->read()方法)。
+  	   当前Blbsvc本地持有chunkstore实例读写过的文件路径，当加入chunkStoreMDS之后，存在可能把文件路径返还的情况（测试可做简化处理，将读写过的文件路径写入磁盘文件上，直接在磁盘文件上查找，现有的chunkstore.read()是在当前目录下持有路径中查找，需要扩展store->read()方法)。
 
 ###### 2.2.3 Write流程：
 
@@ -44,7 +44,7 @@ ChunkStoreDMS设计文档
 
 ###### 2.2.4 测试的流程：
 
-​			（1）chunkstoreDMS初始化效率，例：256个文件夹下的10000个文件信息初始化。
+​			（1）chunkstoreMDS初始化效率，例：256个文件夹下的10000个文件信息初始化。
 
 ​			（2）  并发模拟，例： 256个线程并发call chunkStoreMDS模拟多个节点不同call ,单个线程中设置call频率和模拟读写。
 
@@ -61,10 +61,10 @@ ChunkStoreDMS设计文档
 | Class  name          | Function                                                     |
 | -------------------- | ------------------------------------------------------------ |
 | FileInfoScan         | 接口，暴露抽象的获取文件路径集合方法和recovery方法           |
-| DiskScan             | 实现封装os提供的操作磁盘文件的方法，初始化和用于crash后恢复ChunkStoreMDS信息，用于chunkStore物理磁盘的扩展 |
+| DiskScan             | 实现封装os提供的操作磁盘文件的方法，初始化和用于crash后恢复ChunkStoreMDS信息，用于chunkStore物理磁盘的扩展实现 |
 | ChunkStoreMDS        | 管理文件信息的请求和分发（需要支持并发）                     |
 | ChunkStoreMDSManager | 实现平衡策略和chunkstoreDMSRecovery                          |
-| MDSClient            | 模拟节点Request文件目录信息，写完成后的Return文件目录信息    |
+| MDSClient            | 模拟节点与ChunkStoreMDS的交互                                |
 | BlbClient            | 模拟节点的读写过程                                           |
 | FileHolder           | 维护一个逻辑文件夹（包含不同磁盘的文件），提供类似于os的文件夹集合操作（增删改查） |
 | TestMDS              | 用于原型测试                                                 |
@@ -72,7 +72,7 @@ ChunkStoreDMS设计文档
 ##### 2.4  数据设计
 
 ```c++
-// 文件信息
+// 文件信息  
 struct fileInfo{
       // filename unique
         string filepath;
@@ -90,7 +90,7 @@ struct fileInfo{
 struct Request_MSG{
         char *owner;
         int fileNum;
-        vector<fileInfo> writenFilesinfo;
+        vector<fileInfo>  writenFilesinfo;
 }
 
 //客户端返回信息
@@ -116,60 +116,91 @@ struct   client_Recovery_MSG{
 
 ##### 2.5 关键函数设计
 
-| API（一）                                                    | Function                           |
+| Public API（一）                                             | Function                           |
 | ------------------------------------------------------------ | :--------------------------------- |
 | DiskScan::GetAllFiles( string path, vector<string>& files)   | 获取指定磁盘的全部文件信息         |
 | DiskScan::GetAllFormatFiles( string path, vector<string>& files,string format) | 获取指定磁盘的指定格式文件信息     |
-| DiskScan::Recover(string path,vector<fileInfo>& files)       | DMS crash后恢复文件路径信息        |
+| DiskScan::Recover(string path,vector<fileInfo>& files)       | MDS crash后恢复文件路径信息        |
 | fileFolder::listFiles()                                      | 列出当前文件夹中的所有文件路径信息 |
 | fileFolder::createMoreFile()                                 | 创建更多的chunkstore文件路径信息   |
 | fileFolder::addFile(string s)                                | 增加指定路径                       |
 | fileFolder::checkFileContained(string ts)                    | 检测是否存在指定文件路径信息       |
 | fileFolder::deleteFile(string ts)                            | 删除指定路径                       |
-| ChunkStoreDMS::printState()                                  | 打印当前MDS 信息                   |
+| ChunkStoreMDS::printState()                                  | 打印当前MDS 信息                   |
 
-| API（二）                                                    | Function                                           |
+| Public  API（二）                                            | Function                                           |
 | ------------------------------------------------------------ | -------------------------------------------------- |
-| ChunkStoreDMS:: markOwned(string filename, char *owner);     | 标记文件路径持有人                                 |
-| ChunkStoreDMS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileList, BALANCE_POLICY policy); | 按照特定策略分发文件路径                           |
-| ChunkStoreDMS::senseCapcity(double restrate);                | 感知文件目录使用状态                               |
-| ChunkStoreDMS::AskMoreFilesTimely();                         | 定时申请更多可写文件路径                           |
-| ChunkStoreDMS::AskMoreFilesForcibly(int rate)；              | 强制申请更多可写文件路径                           |
-| ChunkStoreDMS::updateFilelist(Return_MSG msg);               | 根据客户端信息更新文件目录                         |
-| ChunkStoreDMS:: Client_Revocer_Help(char *owner);            | 恢复客户端持有文件路径集合信息（客户端 crash重启） |
-| ChunkStoreDMSManager::AutoAskingFile();                      | 定时配置更新文件目录（用于测试）                   |
-| ChunkStoreDMSManager::Recovery();                            | DMS Crash后恢复文件路径信息（测试）                |
+| ChunkStoreMDS:: markOwned(string filename, char *owner);     | 标记文件路径持有人                                 |
+| ChunkStoreMDS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileList, BALANCE_POLICY policy); | 按照特定策略分发文件路径                           |
+| ChunkStoreMDS::senseCapcity(double restrate);                | 感知文件目录使用状态                               |
+| ChunkStoreMDS::AskMoreFilesTimely();                         | 定时申请更多可写文件路径                           |
+| ChunkStoreMDS::AskMoreFilesForcibly(int rate)；              | 强制申请更多可写文件路径                           |
+| ChunkStoreMDS::updateFilelist(Return_MSG msg);               | 根据客户端信息更新文件目录                         |
+| ChunkStoreMDS:: Client_Revocer_Help(char *owner);            | 恢复客户端持有文件路径集合信息（客户端 crash重启） |
+| ChunkStoreMDSManager::AutoAskingFile();                      | 定时配置更新文件目录（用于测试）                   |
+| ChunkStoreMDSManager::Recovery();                            | MDS Crash后恢复文件路径信息（测试）                |
 
-| API( 三 )                   | Function                       |
-| --------------------------- | ------------------------------ |
-| MDSClient::RequestFile()    | 模拟请求文件路径               |
-| MDSClient::ReturnFile()     | 模拟返回读写文件信息           |
-| MDSClient::ParseLocalFile() | 模拟本地文件目录信息持久化操作 |
-| BlbClient::initChunkStore() | 模拟节点初始化chunkStore       |
-| BlbClient::read()           | 模拟节点读取操作               |
-| BlbClient::insert()         | 模拟节点插入操作               |
+| Test  API( 三 )               | Function                                          |
+| ----------------------------- | ------------------------------------------------- |
+| MDSClient::RequestFile()      | 模拟请求文件路径                                  |
+| MDSClient::ReturnFile()       | 模拟返回读写文件信息                              |
+| MDSClient::ParseLocalFile()   | 模拟本地文件目录信息解析操作（用于测试读）        |
+| MDSClient::PersistLocalFile() | 本地文件目录信息记录                              |
+| MDSClient::Request_Recovery() | 恢复本地文件目录信息（用于MDSclient crash后恢复） |
+| BlbClient::initChunkStore()   | 模拟节点初始化chunkStore                          |
+| BlbClient::read()             | 模拟节点读取操作                                  |
+| BlbClient::insert()           | 模拟节点插入操作#######  2.6扩展方法              |
+
+##### 2.5  扩展方法
+
+​		当前chunkStore的ReadChunk(),InsertChunk()都是基于初始化时传入的volumn_Path初始化的。
 
 
 
-##### 2.5  测试过程
+
+
+//   
+
+CStreamStoreInternal::Create(
+#ifdef WOSS
+    __in const std::wstring& VolumeRoot,
+#endif
+    __in const std::wstring& VolumePath,
+    __in BOOL IsSecondaryPartition,
+    __in bool bSkipRootDirectoryVerification
+    )
+
+
+
+//  磁盘文件操作
+
+CChunkStore::FindContainerForTransaction();
+
+主要看cchunkStore中跟磁盘文件相关的部分....
+
+
+
+
+
+##### 2.6  测试过程
 
  		a. 单元测试
 
 ```c++
  int main(){
-	 //init file path
+	 //init file path  DiskScan imp FiliInfoScan
 	 DiskScan  scanner("D:/");
      // init logical folder
 	 fileFolder ffolder(scanner.GetAllFormatFiles(p1,p2,p3));
      
-     //inti  ChunkStoreDMS
-     ChunkStoreDMS  DMS(ffolder);
+     //inti  ChunkStoreMDS
+     ChunkStoreMDS  MDS(ffolder);
      
      // internal static init
      MDS.staticInit(baancePolicy , asking rate,.....);
      
-     // init ChunkStoreDMSManager
-     ChunkStoreDMSManager  m(DMS);
+     // init ChunkStoreMDSManager
+     ChunkStoreMDSManager  m(MDS);
      
      // start auto askingfiles to fulfill the needs,impled by timer(once/min)
      thread(m.autoAskFiles()).join();
@@ -183,16 +214,25 @@ struct   client_Recovery_MSG{
      /*
      		all other  functions;
      */
-     
-     
+      
      //test multi-thread call to simulate the scenario that  many clients call
    	for(int i =0;i<size;i++)
     {
-     	thread(m.MDS.deliverFiles(p1,p2,p3)).join();
+     	thread(MDSclient.RequestFiles(p1,p2,p3)).join();
+        thread(MDSclient.ReturnFiles(p1,p2,p3)).join();
+        
     }
- 
- 	  //test client recovery
-      m.MDS.Client_Revocer_Help(owner);
+     
+     // MDSClient unit test
+       MDSClient::PersistLocalFile();
+       MDSClient::ParseLocalFile();
+ 	   MDSClient::Request_Recovery();
+     
+     // Blbclient  unit test
+     
+   		  BlbClient::initChunkStore();
+   		  BlbClient::read();
+   		  BlbClient::insert();
      
       //test MDS recovery
       m.Recovery();
@@ -214,14 +254,14 @@ int main(){
      // init logical folder
 	 fileFolder ffolder(scanner.GetAllFormatFiles(p1,p2,p3));
      
-     //inti  ChunkStoreDMS
-      ChunkStoreDMS  DMS(ffolder);
+     //inti  ChunkStoreMDS
+      ChunkStoreMDS  MDS(ffolder);
      
      // internal static init
-      DMS.staticInit(baancePolicy , asking rate,.....);
+      MDS.staticInit(baancePolicy , asking rate,.....);
      
-     // init ChunkStoreDMSManager
-      ChunkStoreDMSManager  m(DMS);
+     // init ChunkStoreMDSManager
+      ChunkStoreMDSManager  m(MDS);
     
     // get file
     MDSclient    MDSclients[n]
@@ -252,21 +292,17 @@ int main(){
 
 ### 三 之后的工作
 
-​		按照Intern Plan ，如果在此之前的ChunkStoreDMS在read() ,insert()方法上效果不错，接下来是考虑delete()和GC()的设计，并且已完成的demo的基础上进一步实现。
+​		按照Intern Plan ，如果在此之前的ChunkStoreMDS在read() ,insert()方法上效果不错，接下来是考虑delete()和GC()的设计，并且已完成的demo的基础上进一步实现。
 
-### 四 并发结构设计
 
-//16 写文件
 
-按owner取hashkey 
+review 1 :
 
-entity[16] ={}
+internal API
 
-//细化粒度
+public API
 
-entity加锁....
-
-vector(...)
+extended API 
 
 
 
