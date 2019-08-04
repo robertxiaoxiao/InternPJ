@@ -56,6 +56,35 @@ ChunkStoreMDS设计文档
 
 ​		由于ChunkStoreMDS是一个必须满足分布式架构的系统，故而在Prototype的单机测试中，采用多线程来模拟不同的节点访问，来测试在并发情况下的表现。ChunkStoreMDS本身维护的是一个文件路径的集合（“.ccc“格式的文件路径），系统所实现的目标就是根据对应的chunkstore信息（在系统中体现为包含文件路径的文件信息结构体），进行文件路径（chunkstore初始化所必须的参数）的统一分发和管理。
 
+##### 2.3 扩展方法说明
+
+​		
+
+```c++
+/*
+	当前chunkStore的ReadChunk(),InsertChunk()方法主要实现由			   			CChunkStore::FindContainerForTransaction(_in newchunkSize,__out 					container);
+		EnsureContainersLoadedUnsafe();
+		EnumerateContainers(storepath,Allcontainers)
+		当前来枚举container过程中，如果碰到可写文件不够的情况是直接BlbcreateFile()调用winapi....
+*/
+```
+
+​		主要涉及到cchunkStore中跟磁盘文件操作的部分，因此加入MDS模块之后只需要扩展方法 FindContainerForTranction()来实现文件的返还和读写由MDS模块控制。
+
+​		a. 当前读方法：直接指定对应磁盘读写.... init  chunkstore ，FindContainer(),container->openforread(storepath,containerid,generation)然后正常读。
+
+​		b .当前写方法 ： (1) session查找(chunkstoreSession由storeID初始化 )
+
+​								 	(2) 找不到合适调用就创建一个container，FindnewContainerForTranction（new chunksize,new container）
+
+​		增加MDS扩展后方法：
+
+​		c.扩展读方法：先查看session中是否有要读取的文件（container），如果没有则需要查看本地文件(单节点中已经读写过的文件集合)，如果本地文件没有则读失败。
+
+​		d. 扩展写方法： 先查看session中是否有可读写的文件，如果找不到合适的可写文件，则向MDSSvs请求一批可写的新文件，（并将已写文件异步返回以便MDSsvc更新），需要在本地记录该节点读写过的文件路径信息（测试采用写本地文件的形式记录）。
+
+​		 扩展方法中需要关注的类  chunkStoresession ，cchunkStore    。
+
 ##### 2.3  类与接口设计  
 
 | Class  name          | Function                                                     |
@@ -149,40 +178,9 @@ struct   client_Recovery_MSG{
 | MDSClient::Request_Recovery() | 恢复本地文件目录信息（用于MDSclient crash后恢复） |
 | BlbClient::initChunkStore()   | 模拟节点初始化chunkStore                          |
 | BlbClient::read()             | 模拟节点读取操作                                  |
-| BlbClient::insert()           | 模拟节点插入操作#######  2.6扩展方法              |
+| BlbClient::insert()           | 模拟节点插入操作                                  |
 
-##### 2.5  扩展方法
-
-​		当前chunkStore的ReadChunk(),InsertChunk()都是基于初始化时传入的volumn_Path初始化的。
-
-
-
-
-
-//   
-
-CStreamStoreInternal::Create(
-#ifdef WOSS
-    __in const std::wstring& VolumeRoot,
-#endif
-    __in const std::wstring& VolumePath,
-    __in BOOL IsSecondaryPartition,
-    __in bool bSkipRootDirectoryVerification
-    )
-
-
-
-//  磁盘文件操作
-
-CChunkStore::FindContainerForTransaction();
-
-主要看cchunkStore中跟磁盘文件相关的部分....
-
-
-
-
-
-##### 2.6  测试过程
+##### 2.5  测试过程
 
  		a. 单元测试
 
@@ -293,18 +291,6 @@ int main(){
 ### 三 之后的工作
 
 ​		按照Intern Plan ，如果在此之前的ChunkStoreMDS在read() ,insert()方法上效果不错，接下来是考虑delete()和GC()的设计，并且已完成的demo的基础上进一步实现。
-
-
-
-review 1 :
-
-internal API
-
-public API
-
-extended API 
-
-
 
 
 
