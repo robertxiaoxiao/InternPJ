@@ -13,7 +13,7 @@ using namespace std;
 struct fileInfo{
 
      // filename unique
-     string filepath ;
+    string filepath ;
 
     //  check free and ctrl file access
     bool  Beusing ;
