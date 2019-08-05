@@ -16,7 +16,7 @@ void GetAllFormatFiles( string path, vector<string>& files,string format) ;
 int main(){
 
     
-	string filePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{E1B5B274-9511-4832-B8AF-4A8D4B826C8C}.ddp\\Data";  
+	string filePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob";  
 
 	vector<string> files;  
 
@@ -26,6 +26,8 @@ int main(){
  
 	//读取所有格式为ccc的文件
 	string format = ".ccc";
+
+//	GetAllFiles(filePath,files) ;
 	GetAllFormatFiles(filePath, files,format);
 
     for(string s: files)
@@ -69,6 +71,14 @@ void GetAllFiles( string path, vector<string>& files)
 }  
  
  
+ bool hasEnding (std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
 //获取特定格式的文件名
 void GetAllFormatFiles( string path, vector<string>& files,string format)  
 {  
@@ -79,7 +89,7 @@ void GetAllFormatFiles( string path, vector<string>& files,string format)
 
 	string p;  
 
-	if((hFile = _findfirst(p.assign(path).append("\\*" + format).c_str(),&fileinfo)) !=  -1)  
+	if((hFile = _findfirst(p.assign(path).append("\\*" ).c_str(),&fileinfo)) !=  -1)  
 	{  
 		do  
 		{    
@@ -93,7 +103,8 @@ void GetAllFormatFiles( string path, vector<string>& files,string format)
 			}  
 			else  
 			{  
-				files.push_back(p.assign(path).append("\\").append(fileinfo.name) );  
+				if(hasEnding(p.assign(fileinfo.name),format))
+							files.push_back(p.assign(path).append("\\").append(fileinfo.name) );  
 			}  
 		}while(_findnext(hFile, &fileinfo)  == 0);  
  

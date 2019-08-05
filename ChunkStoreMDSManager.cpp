@@ -10,28 +10,23 @@ using  namespace std ;
 
 
 
-class A{
+// class A{
 
-   public:
+//    public:
 
-     int i =0;
+//      int i =0;
 
-     void sayhello(){
-            // auto incre
+//      void sayhello(){
+//             // auto incre
         
-            while(true)
-                {
-                    std::cout<<"hello  ,world"<<i++<<std::endl;
+//             while(true)
+//                 {
+//                     std::cout<<"hello  ,world"<<i++<<std::endl;
 
-                    Sleep(2000);
-                }
-   }
-
-
-  
-
-};
-
+//                     Sleep(2000);
+//                 }
+//    }
+// };
 
 class ChunkStoreMDSManager
 {

@@ -67,6 +67,7 @@ class ChunkStoreMDS
 {
 
 private:
+
         //to control the os file operations
         fileFolder fholder;
 
@@ -338,7 +339,7 @@ void ChunkStoreMDS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileLis
         }
 };
 
-#define deafult_Asking_File_Size 10
+#define deafult_Asking_File_Size 100
 
 // called by other function explicitly  and rate to optimize the asking file times
 void ChunkStoreMDS::AskMoreFilesForcibly(int rate)

@@ -6,6 +6,9 @@
 #include<Windows.h>
 #include <thread>
 #include <functional>
+#include <direct.h>
+#include <io.h>
+
 using namespace std;
 
 
@@ -67,20 +70,94 @@ DWORD GetNumOfProcess()// 获取CPU的核心数
 #include<mutex>
 
 std::mutex mtx;           
+
 void print_thread_id (int id) {
   // critical section (exclusive access to std::cout signaled by locking mtx):
   mtx.lock();
+
   std::cout << "thread #" << id << '\n';
   mtx.unlock();
 }
 
-int main(){
-          std::thread threads[10];
-  // spawn 10 threads:
-  for (int i=0; i<10; ++i)
-    threads[i] = std::thread(print_thread_id,i+1);
 
-    for (auto& th : threads) th.join();
+
+class A{
+
+public :
+    static int num ;
+
+    static void staticinit(){
+         cout<<num++<<std::endl;
+    }
+
+    void incr(){
+        cout<<num++<<std::endl;
+    }
+
+};
+
+
+LPCWSTR stringToLPCWSTR(std::string orig)
+{
+size_t origsize = orig.length() + 1;
+    const size_t newsize = 100;
+    size_t convertedChars = 0;
+wchar_t *wcstring = (wchar_t *)malloc(sizeof(wchar_t)*(orig.length()-1));
+mbstowcs_s(&convertedChars, wcstring, origsize, orig.c_str(), _TRUNCATE);
+
+return wcstring;
+}
+
+
+//static variety init
+int A::num=1;
+
+int main(){
+     
+    string dir="./hello";
+
+if (access(dir.c_str(), 0) == -1)
+	{
+		cout<<dir<<" is not existing"<<endl;
+		cout<<"now make it"<<endl;
+
+		int flag=mkdir(dir.c_str()); 
+
+
+		if (flag == 0)
+		{
+			cout<<"make successfully"<<endl;
+		} else {
+			cout<<"make errorly"<<endl;
+		}
+
+    }
+
+
+
+ //string to LPCWSTR
+    string filepath1="C:\\Users\\Administrator\\Desktop\\file_demo_test1.txt";
+
+
+   
+    DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    DWORD dwShareMode = 0;
+    LPSECURITY_ATTRIBUTES lpSecurityAttributes = 0;
+    DWORD dwCreationDisposition = CREATE_NEW;
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+    HANDLE hTemplateFile = 0;
+    //(p.assign(dir).append("1").append(".ccc")
+    HANDLE handle = CreateFile(stringToLPCWSTR(filepath1), dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    printf("CreateFile -> HANDLE=0x%x\n", (unsigned int)handle);
+
+
+
+//           std::thread threads[10];
+//   // spawn 10 threads:
+//   for (int i=0; i<10; ++i)
+//         threads[i] = std::thread(print_thread_id,i+1);
+
+//     for (auto& th : threads) th.join();
       
           
 //  PTP_POOL tPool;

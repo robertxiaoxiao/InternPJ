@@ -2,30 +2,6 @@ ChunkStore扩展设计文档
 
 #### 一  架构图
 
-
-
-###    需要描述的过程     MDSclient  MDSserver ChunkStore之间的交互，对外暴露的接口，交互的过程，实现的功能。
-
-###  描述细节 主要的模块   
-
-架构图描述  暴露的接口跟过程
-
-chunkStore对磁盘文件的操作 都变成对MDSclient的调用....
-
-数据记录表（）
-
-request_retrun 
-
-
-
-
-
-
-
-
-
-
-
 ##### 1.1当前架构
 
 ​		  当前架构如下图所示， 客户端持有Blbclient ， 通过rpc调用BlbServer的服务，每一次调用Blbserver启动一个Blbsvc进程来处理请求，每一个Blbsvc包含chunkStoreLibrary，所有的chunkstore路径被Blbsvc保存在本地进程，并实现对应的读写服务。由于ChunkStore可以无限写直到磁盘被写满（在物理磁盘允许的情况下），可能导致系统管理的磁盘上，不同的ChunkStore中存储数据大小产生较大差异。
