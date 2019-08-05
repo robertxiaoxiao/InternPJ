@@ -2,32 +2,40 @@
 #include  <iostream>
 #include <string>
 #include <vector>
-
+#include "FileInfoScan.cpp"
 using namespace std;
 class fileFolder{
 
+
     private:
-    // file name space 
-    std::vector<std::string> files;
 
-    const int defaultSize=1000;
-
+        std::string  recordTxtPath;
 
     public :
+    
+    FileInfoScan filescanner;
+    
 
-          fileFolder(int size);
+     // file name space 
+    std::vector<std::string> files;
 
-          fileFolder();
 
-          ~fileFolder();
+    fileFolder(FileInfoScan fileScanner );
+
+    ~fileFolder();
+
+
+    static void  initFiles(){
+          filescanner.getFiles
+    };
 
     // print ctrl files
-      void listFiles();
+    void listFiles();
 
     // create file ;
-      void createFile();
+    void createMoreFile(int filenum);
 
-     // add file ;
+    // add file ;
       void addFile(std::string file);
 
     // delete file;
@@ -35,5 +43,22 @@ class fileFolder{
 
     //  check file
       int checkFileContained(string filename);
+    
+   	// to recover 
+	  void Recovery(vector<string>& files) ;
+
+
+    void setPath(string s) {
+
+         recordTxtParh=s ;
+    }
+
+	    // 配置恢复路径
+    void EnsureRecovery(string s) ;
+	{	
+		    setPath(s);
+        
+	}
+
 
 };

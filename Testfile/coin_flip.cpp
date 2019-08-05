@@ -6,7 +6,7 @@
 
 int times=1;
 int pt=1;
-
+using namespace std;
 void  coin_flip(int size){
 
 
@@ -50,6 +50,17 @@ int main(){
               cout<<"Test Func :cos(): "<<std::endl;
 
          coin_flip(10000);
+
+
+        // goto stop;
      }
      cout<<"Total Positive : "<<setiosflags(ios::fixed)<<setprecision(3)<<(double)pt/10<<std::endl;
+
+
+
+// stop:     
+//      cout<<"error occured : "<<std::endl;
+
 }
+
+

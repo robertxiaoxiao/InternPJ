@@ -14,16 +14,25 @@ using namespace std;
        to do : 并发控制
  */
 
-
   //  ask for files 
-        //  defalut string for test 
+ //  defalut string for test 
 string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
 
 
+string volume[3]={"D:/"};
+
+
+
+
+
 // default construct 
-   fileFolder::fileFolder(){ 
+   fileFolder::fileFolder(FileInfoScan fileScanner){ 
+
         files = vector<string>() ;
+        filescanner=fileScanner;
   }
+
+
 
 
 // release files memory
@@ -33,7 +42,7 @@ string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
    };
 
     //  list files
-    void fileFolder::listFiles(){
+  void fileFolder::listFiles(){
         printf("current folder files: \r\n") ;
         int i=0;
         for (auto  s: files)
@@ -44,14 +53,23 @@ string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
         
     }
 
+
+
+  
+
+
     // ask for other api to get files
-    void fileFolder::createFile(){
+    void fileFolder::createMoreFile(int  filenum){
+    
+        // create chunkstore file in specific volume
         for(string  s: testFiles)
         {
                 addFile(s);
         }
 
     }
+
+
 
 
     // add files into  folder 
@@ -103,7 +121,7 @@ string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
 
         fileFolder  s2;
         
-        s2.createFile();
+        s2.createMoreFile();
         s2.listFiles();
         s2.checkFileContained("1.ccc");
         s2.checkFileContained("4.ccc");

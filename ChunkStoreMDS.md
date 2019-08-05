@@ -15,6 +15,8 @@
 
 
 }
+
+ChunkStoreMDS Manager  设置管理ChunkStoreMDS并保证单例
 ```
 
 ### ClientSvc
