@@ -1,30 +1,6 @@
-ChunkStore扩展设计文档 
+ChunkStoreMDS扩展设计文档 
 
-#### 一  架构图
-
-
-
-###    需要描述的过程     MDSclient  MDSserver ChunkStore之间的交互，对外暴露的接口，交互的过程，实现的功能。
-
-###  描述细节 主要的模块   
-
-架构图描述  暴露的接口跟过程
-
-chunkStore对磁盘文件的操作 都变成对MDSclient的调用....
-
-数据记录表（）
-
-request_retrun 
-
-
-
-
-
-
-
-
-
-
+#### 一  架构设计
 
 ##### 1.1当前架构
 
@@ -36,11 +12,55 @@ request_retrun
 
 ​	  	添加ChunkStoreMDS模块后，架构变成如下图所示。每个Client先通过MDSclient通过rpc调用MDSsvc,
 
-请求需要数量的可写入的ChunkStore文件路径集合，根据返回的文件路径集合，通过调用Blbclient中暴露的chunkStoreLibrary相关接口来初始化对应的ChunkStore，并进行相关的insert(),read(),GC(),delete()操作。
+请求需要数量的可读写的ChunkStore文件路径集合，根据返回的文件路径集合，通过调用Blbclient中暴露的chunkStoreLibrary相关接口来初始化对应的ChunkStore，并进行相关的insert(),read(),GC(),delete()操作。
 
 ​	     ChunkStoreMDS模块提供BalanceStore,StoreRecovery,ManageFolder支持，ManagerFolder暴露统一的FolderInfo接口来进行操作，FolderInfo接口可以被扩展为DatabaseManager（基于数据库获取文件目录信息）和DiskManager(在物理磁盘上扫描获取文件目录信息)。
 
 ![1564971753670](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564971753670.png)
+
+##### 1.3 关注点
+
+​		设计架构主要是解决Blbclient和Blbsvc的强关联问题，即在原有架构下，当Blbsvc一旦初始化ChunkStore完成后，就与对应的shareFolder中的特定Folder绑定。解决的主要思路是添加chunkStoreMDS模块，MDSserver负责对shareFolder进行管理，并且提供必要的接口供MDSclient调用，并且扩展chunkstoreLibrary中的相关方法以满足需要。主要关注以下两个方面：
+
+​		(1)MDSserver模块，主要由四部分构成，BalancePolicy,MDSsvc,Recovery,FileFolder。
+
+​		(2)MDSclient模块。
+
+###### 1.4  模块说明
+
+###### 1.4.1 MDSserver模块
+
+​		MDSserver模块主要负责组织和管理FileFolder，并且对外提供调用接口。
+
+| Component     | Function                                                     |
+| ------------- | ------------------------------------------------------------ |
+| BalancePolicy | 提供组织管理Filefolder的平衡策略的配置和修改                 |
+| MDSsvc        | 提供公用接口(Request_ReturnFiles)供MDSclient调用,并负责更新内部Fileinfo数据记录表 |
+| Recovery      | 提供crash后恢复服务                                          |
+| FileFolder    | 提供对shareFolder的操作抽象，负责统一维护内部Fileinfo数据记录表 |
+
+###### 1.4.2 MDSclient模块
+
+​		MDSclient模块主要是提供MDS服务请求接口，以及chunkstoreLibrary中部分方法扩展调用接口。
+
+##### 1.5  模块接口设计
+
+	###### 1.5.1  Public Interface 设计
+
+| Public Interface                                             | Function                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| MDSserver.Deliver_updateFiles（Req_client,fileListsize,writenFileList,returnFileList） | 主要负责MDSsvc分发更新文件信息，参数分别包括：（1）Req_client请求客户端（2）请求文件数目(3)已写文件列表，用于更新MDSserver端文件信息（4）根据策略返回请求的文件列表。 |
+| MDSclient.Request_returnFiles(Req_server,fileListsize,writenFileList,returnFileList) | 主要负责MDSclient请求更新文件信息，参数分别包括：（1）Req_server请求服务端（2）请求文件数目(3)已写文件列表，用于更新MDSserver端文件信息（4）根据MDSserver策略返回请求的文件列表。 |
+| MDSserver.FileFolder(FileListInfo)                           | 主要提供对shareFolder的统一抽象封装，提供一个类似于操作系统os的逻辑文件目录管理功能，参数主要是FileListInfo（chunkstore物理磁盘上的路径信息，可通过磁盘扫描，数据库查表来明确） |
+
+###### 1.5.2 Internal Interface 设计
+
+| Internal Interface          | Function                                                     |
+| --------------------------- | ------------------------------------------------------------ |
+| MDSserver.Recover()         | 发生crash后恢复本地数据记录表                                |
+| MDSserver.Balance()         | 在与MDSclient和FileFolder的交互中平衡数据记录表（维持数据记录表在一个相对平衡的状态下） |
+| MDSclient.getAvalibalFile() | 提供可读写的chunkstore路径文件信息（可用于扩展chunkStore现有方法） |
+| MDSclient.Recover()         | 当MDSclient crash后恢复本地数据记录表                        |
 
 ### 二 概要设计
 
@@ -48,39 +68,39 @@ request_retrun
 
 ######	2.1.1 设计流程 ：
 
-​		客户端持有Blbclient和MDSclient，通过rpc调用ChunkStoreMDS，得到可写的文件目录集合信息之后，通过调用Blbclient提供的chunkstore接口。
+​		客户端持有Blbclient和MDSclient，通过rpc调用ChunkStoreMDS，得到可读写的文件路径集合之后，通过调用Blbclient提供的chunkstore接口，主要包括以下三个过程：
 
-​	  （1）实现chunkstore的实例化
+​	   （1）根据可读写文件路径实例化chunkstore
 
-​	   （2）写数据，根据chunkStore实例进行写入操作（直接写入磁盘），在写入完成之后MDSclient记录写入文件相关信息（filepath,offset,filesize...），并且通过rpc调用ChunkStoreMDS进行路径信息的更新和读写记录。
+​	   （2）写数据，根据chunkStore实例进行写入操作（直接写入磁盘），在写入完成之后MDSclient记录写入文件相关信息（filepath,offset,filesize...），并且通过rpc调用ChunkStoreMDS进行路径信息的更新和读写记录,并在本地维护一个读写文件记录cache。
 
-​	  （3）读数据，根据chukStore实例进行读数据，当前是将实例中持有过的文件路径记录在本地文件上（存在读取的文件路径信息已经返回给ChunkStoreMDS的情况），根据对应的文件路径确定后进行文件读取。
+​	   （3）读数据，根据chukStore实例进行读数据，在本地维持一个读写文件cache（存在读写过的文件路径信息已经返回给ChunkStoreMDS的情况），根据对应的文件路径确定后进行文件读取。
 
-######	2.2.2 Read 流程：
+######	2.1.2 Read 流程：
 
-  	   当前Blbsvc本地持有chunkstore实例读写过的文件路径，当加入chunkStoreMDS之后，存在可能把文件路径返还的情况（测试可做简化处理，将读写过的文件路径写入磁盘文件上，直接在磁盘文件上查找，现有的chunkstore.read()是在当前目录下持有路径中查找，需要扩展store->ReadChunk()方法)。流程图如下图所示。
+  	   当Blbsvc本地持有chunkstore实例读写过的文件路径，当加入chunkStoreMDS之后，存在可能把文件路径返还的情况（测试可做简化处理，将读写过的文件路径写入磁盘文件上，直接在磁盘文件上查找，现有的chunkstore.read()是在当前目录下持有路径中查找，需要扩展store->ReadChunk()方法)。流程图如下图所示。
 
 ![1564972841695](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564972841695.png)
 
-###### 2.2.3 Write流程：
+###### 2.1.3 Write流程：
 
-​		 MDSclient直接RPC调用 chunkstoreMDS获得可写文件地址，内部进行文件目录的管理和分配（持有文件目录集合），完成写操作之后需要返回给ChunkStoreMDS更新文件目录信息，同时需要在本地记录下写过的文件路径信息。流程图入下图所示。
+​		 MDSclient直接RPC调用 chunkstoreMDS获得可写文件地址，内部进行文件路径的管理和分配（持有文件路径集合），完成写操作之后需要返回给ChunkStoreMDS更新文件目录信息，同时需要在本地记录写过的文件路径信息。流程图入下图所示。
 
 ![1564973052168](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564973052168.png)
-
-###### 2.2.4 测试的流程：
-
-​			（1）chunkstoreMDS初始化效率测试，例：256个文件夹下的10000个文件信息初始化。
-
-​			（2）并发测试，例： 256个线程并发call chunkStoreMDS模拟多个节点不同call ,单个线程中设置call频率和模拟读写。
-
-​			（3）chunkStoreMDS单元测试。
-
-​			（4）结合chunkStoreViewer集成测试读写(需要根据新逻辑扩展chunkstore部分方法);
 
 ##### 2.2 原型测试设计
 
 ​		由于ChunkStoreMDS是一个必须满足分布式架构的系统，故而在Prototype的单机测试中，采用多线程来模拟不同的节点访问，来测试在并发情况下的表现。ChunkStoreMDS本身维护的是一个文件路径的集合（“.ccc“格式的文件路径），系统所实现的目标就是根据对应的chunkstore信息（在系统中体现为包含文件路径的文件信息结构体），进行文件路径（chunkstore初始化所必须的参数）的统一分发和管理。
+
+​		测试的流程：
+
+​		（1）chunkstoreMDS初始化效率测试，例：256个文件夹下的10000个文件信息初始化。
+
+​		（2）并发测试，例： 256个线程并发call chunkStoreMDS模拟多个节点不同call ,单个线程中设置call频率和模拟读写。
+
+​		（3）chunkStoreMDS单元测试。
+
+​		（4）结合chunkStoreViewer集成测试读写(需要根据新逻辑扩展chunkstore部分方法);
 
 ##### 2.3 扩展方法说明
 
@@ -103,29 +123,29 @@ request_retrun
 
 ​		增加MDS扩展后方法：
 
-​		c.扩展读方法：先查看session中是否有要读取的文件（container），如果没有则需要查看本地文件(单节点中已经读写过的文件集合)，如果本地文件没有则读失败。
+​		c. 扩展读方法：先查看session中是否有要读取的文件（container），如果没有则需要查看本地cache(单节点中已经读写过的文件集合)，如果cache中没有则读失败。
 
-​		d. 扩展写方法： 先查看session中是否有可读写的文件，如果找不到合适的可写文件，则向MDSSvs请求一批可写的新文件，（并将已写文件异步返回以便MDSsvc更新），需要在本地记录该节点读写过的文件路径信息（测试采用写本地文件的形式记录）。
+​		d. 扩展写方法： 先查看session中是否有可读写的文件，如果找不到合适的可写文件，则向MDSSvs请求一批可写的新文件，（并将已写文件异步返回以便MDSsvc更新），需要在本地cache中记录该节点读写过的文件路径信息（测试采用写本地文件的形式记录）。
 
 ​		 扩展方法中需要关注的类  chunkStoresession ，cchunkStore 。
 
-##### 2.3  类与接口设计  
+##### 2.4   原型中类与接口设计  
 
 | Class  name          | Function                                                     |
 | -------------------- | ------------------------------------------------------------ |
-| FileInfoScan         | 接口，暴露抽象的获取文件路径集合方法和recovery方法           |
-| DiskScan             | 实现封装os提供的操作磁盘文件的方法，初始化和用于crash后恢复ChunkStoreMDS信息，用于chunkStore物理磁盘的扩展实现 |
-| ChunkStoreMDS        | 管理文件信息的请求和分发（需要支持并发）                     |
+| FileInfoScan         | 接口，抽象获取文件路径集合的方法                             |
+| DiskScan             | 物理磁盘实现FileInfoScan，获取指定磁盘上的可读写文件路径集合 |
+| ChunkStoreMDS        | 管理文件路径信息的请求和分发（需要支持并发）                 |
 | ChunkStoreMDSManager | 实现平衡策略和chunkstoreMDSRecovery                          |
-| MDSClient            | 实现节点与ChunkStoreMDS的交互，和读写过文件的本地记录        |
+| MDSClient            | 实现节点与ChunkStoreMDS的交互，维护本地cache,提供可读写文件路径 |
 | BlbClient            | 实现节点的读写过程                                           |
-| FileHolder           | 维护一个逻辑文件夹（包含不同磁盘的文件），提供类似于os的文件夹集合操作（增删改查） |
+| FileHolder           | 维护一个逻辑文件夹（包含不同物理磁盘的文件），提供类似于os的文件夹集合操作（增删改查），提供Folder Recover功能 |
 | TestMDS              | 用于原型测试                                                 |
 
-##### 2.4  数据设计
+##### 2.5  数据设计
 
 ```c++
-// 文件信息  
+// fileInfo maintained by chunkStoreMDS  
 struct fileInfo{
       // filename unique
         string filepath;
@@ -139,19 +159,19 @@ struct fileInfo{
         // writen size  for balance 
         long offset;
 }
-//客户端请求信息
+//MDSclient request_msg
 struct Request_MSG{
         char *owner;
         int fileNum;
         vector<fileInfo>  writenFilesinfo;
 }
 
-//客户端返回信息
+//MDSserver return_msg
 struct Return_MSG{
      char *owner;    
      vector<fileInfo> files;
 }
-// 平衡策略
+// Balance_Policy
 typedef enum
 {
         UNKNOWN_OPERATION = 0,
@@ -167,13 +187,13 @@ struct   client_Recovery_MSG{
 
 ```
 
-##### 2.5 关键函数设计
+##### 2.6 关键方法设计
 
 | Public API（一）                                             | Function                           |
 | ------------------------------------------------------------ | :--------------------------------- |
 | DiskScan::GetAllFiles( string path, vector<string>& files)   | 获取指定磁盘的全部文件信息         |
 | DiskScan::GetAllFormatFiles( string path, vector<string>& files,string format) | 获取指定磁盘的指定格式文件信息     |
-| DiskScan::Recover(string path,vector<fileInfo>& files)       | MDS crash后恢复文件路径信息        |
+| fileFolder::Recover(string path,vector<fileInfo>& files)     | MDS crash后恢复文件路径信息        |
 | fileFolder::listFiles()                                      | 列出当前文件夹中的所有文件路径信息 |
 | fileFolder::createMoreFile()                                 | 创建更多的chunkstore文件路径信息   |
 | fileFolder::addFile(string s)                                | 增加指定路径                       |
@@ -191,20 +211,20 @@ struct   client_Recovery_MSG{
 | ChunkStoreMDS::updateFilelist(Return_MSG msg);               | 根据客户端信息更新文件目录                         |
 | ChunkStoreMDS:: Client_Revocer_Help(char *owner);            | 恢复客户端持有文件路径集合信息（客户端 crash重启） |
 | ChunkStoreMDSManager::AutoAskingFile();                      | 定时配置更新文件目录（用于测试）                   |
-| ChunkStoreMDSManager::Recovery();                            | MDS Crash后恢复文件路径信息（测试）                |
+| ChunkStoreMDSManager::Recovery();                            | MDS Crash后恢复文件路径信息                        |
 
 | Test  API( 三 )               | Function                                          |
 | ----------------------------- | ------------------------------------------------- |
-| MDSClient::RequestFile()      | 模拟请求文件路径                                  |
-| MDSClient::ReturnFile()       | 模拟返回读写文件信息                              |
-| MDSClient::ParseLocalFile()   | 模拟本地文件目录信息解析操作（用于测试读）        |
-| MDSClient::PersistLocalFile() | 本地文件目录信息记录                              |
-| MDSClient::Request_Recovery() | 恢复本地文件目录信息（用于MDSclient crash后恢复） |
-| BlbClient::initChunkStore()   | 模拟节点初始化chunkStore                          |
-| BlbClient::read()             | 模拟节点读取操作                                  |
-| BlbClient::insert()           | 模拟节点插入操作                                  |
+| MDSClient::RequestFile()      | 请求文件路径                                      |
+| MDSClient::ReturnFile()       | 返回读写文件信息                                  |
+| MDSClient::ParseLocalFile()   | 本地文件路径信息解析操作（用于测试读）            |
+| MDSClient::PersistLocalFile() | 本地cache维护                                     |
+| MDSClient::Request_Recovery() | 恢复本地文件路径信息（用于MDSclient crash后恢复） |
+| BlbClient::initChunkStore()   | 节点初始化chunkStore                              |
+| BlbClient::read()             | 节点读取操作                                      |
+| BlbClient::insert()           | 节点插入操作                                      |
 
-##### 2.5  测试过程
+##### 2.7  测试过程
 
  		a. 单元测试
 
@@ -314,9 +334,7 @@ int main(){
 
 ### 三 之后的工作
 
-​		按照Intern Plan ，如果在此之前的ChunkStoreMDS在read() ,insert()方法上效果不错，接下来是考虑delete()和GC()的设计，并且已完成的demo的基础上进一步实现。
-
-
+​		按照Intern Plan ，如果在此之前的ChunkStoreMDS在当前架构扩展下的read() ,insert()方法上效果不错，接下来是考虑delete()和GC()的设计，并且已完成的demo的基础上进一步实现。
 
 
 
