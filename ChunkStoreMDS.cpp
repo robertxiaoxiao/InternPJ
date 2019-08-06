@@ -8,6 +8,8 @@
 #include "FileFolder.cpp"
 #include <algorIThm>
 #include <functional>
+
+
 using namespace std;
 struct fileInfo
 {
@@ -63,12 +65,25 @@ struct client_Recovery_MSG
         vector<fileInfo> ownedFileList;
 };
 
+/*
+
+deliver and manage filelist
+
+ */
+
+
+// 0 : not syncing       1 : syncing
+// 条件变量  必须等待同步完成之后才能call
+
+int sync = 0;
+
 class ChunkStoreMDS
 {
 
+
 private:
 
-        //to control the os file operations
+        // to control the os file operations
         fileFolder fholder;
 
         // to store the filelist  and must support concurrent read and write in some specific position
@@ -78,22 +93,20 @@ private:
         std::vector<fileInfo> usingfilelist;
 
         // fholder and filelist sync flag
-        //0 : not syncing    1 : syncing
-        int sync = 0;
+
+
+        
 
 public:
+
         // construct
-        ChunkStoreMDS();
+        ChunkStoreMDS(fileFolder holder);
 
         // desturct
         ~ChunkStoreMDS();
 
-        //init
-        void staticInit(fileFolder holder)
-        {
-
-                fholder = holder;
-        };
+        //init  fileinfo 
+        void staticInit()   ;
 
         // print MDS info
         void printState();
@@ -116,7 +129,7 @@ public:
         //fileholder recovers from crash ,and test using a specific files.txt ;
         void fileHolderRecover();
 
-        // ask for more files forcibly in senerior which  rest files cannot meet the needs and timely-askFiles has not started
+        // ask for more files forcibly in senerior where  rest files cannot meet the needs and timely-askFiles has not started
         void AskMoreFilesForcibly(int rate);
 
         // update fileinfo based on client writing-complete callback ;
@@ -179,13 +192,8 @@ exit:
 void ChunkStoreMDS::migrateFileToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist, string filename)
 {
 
-<<<<<<< HEAD
-     // filename unique
-    string filepath ;
-=======
         // to do
 }
->>>>>>> refs/remotes/origin/master
 
 // get specific file addr to modify
 fileInfo *ChunkStoreMDS::ModifyFileinfo(string filename)
@@ -441,6 +449,7 @@ void ChunkStoreMDS::fileHolderRecover()
         // to do
 }
 
+
 // to receive client info and update
 void ChunkStoreMDS::updateFilelist(Return_MSG msg)
 {
@@ -484,7 +493,5 @@ client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
 
         return m;
 }
-
-
 
 //

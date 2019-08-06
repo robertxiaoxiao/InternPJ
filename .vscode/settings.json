@@ -54,6 +54,7 @@
         "condition_variable": "cpp",
         "resumable": "cpp",
         "future": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "fstream": "cpp"
     }
 }

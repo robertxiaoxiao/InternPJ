@@ -13,14 +13,21 @@ class BlbClient{
                 void  initChunkStore();
 
                 // chunkstore read
-                void Read(string Chunksize ,string  filepath) ;
+                void Read(string Chunksize ,string  filepath);
 
-                //
+                //chunkstore insert
                 void Write(string chunksize ,string filepath);
 
 
+        /*
+              new  chunkstore init ;
+              chunkstore.staticinit;
+              cstreamstore::create(volumeroot,volumepath,....)
+              sessionManager.createSession(cstreamstore) ;       
+         */
 
 
+        
 
 
 }

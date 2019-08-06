@@ -7,63 +7,24 @@
 #include "stdlib.h"
 #include <string>
 #include "Windows.h"
-#include "FileInfoScan.h"
+#include <fstream>
+
+#include "FileInfoScan.cpp"
+#include "DiskScanner.h"
 
 
 using namespace std;
 /*
    implemtns the func of os oprations  of specific folder 
  */
-class DiskScanner: public FileInfoScan{
 
-
-	private:
-
-	// scan path
-	std::vector<string>  defaultPath;
-
-	
-    public :
-
-		static int filenum;
-
-
-    DiskScanner();
-
-    ~DiskScanner();
-
-     //获取特定格式的文件
-    void GetAllFiles( std::vector<string>& files)  ;
-
-    //获取特定格式的文件名
-    void GetAllFormatFiles(vector<string>& files,string format) ;
-
-
-     //获取特定格式的文件
-    void GetAllFiles( string path, std::vector<string>& files)  ;
-
-    //获取特定格式的文件名
-    void GetAllFormatFiles( string path, vector<string>& files,string format) ;
-
-	// setting 
-
-    //可配置chunkstore扫描路径
-    void setPath(string s) ;
-
-
-    //  在指定目录生成更多新文件
-	void createFiles(int num , std::vector<string>& files);
-
-                
-};
-
-
+// 配置filefolder扫描地址  ，第一个为默认添加文件地址
 void DiskScanner::setPath(string s){
         defaultPath.push_back(s);
 }
 
 
- DiskScanner::DiskScanner(){
+DiskScanner::DiskScanner(){
 
 }
 
@@ -73,18 +34,68 @@ void DiskScanner::setPath(string s){
 }
 
 
+void createFileInternal(string path){
+
+		std::ofstream location_out;
+		location_out.open(path, std::ios::out | std::ios::app);
+		cout<<"cretae file :"<<path<<std::endl;
+}
+
+
 //构造更多的文件
 void DiskScanner::createFiles(int num , std::vector<string>& files){
-				// call chunkStore bld ;
 
-				
+			string  format=".ccc" ;
+
+	
+			string volume ="D:\\addedFileFolder\\" ;
+			
+			// defaultPath[0]  addedfilefolder
+			if(defaultPath.size()!=0)
+					volume=defaultPath.at(0);
+
+			string p;
+	
+			for(int i=0;i<num;i++)
+				{	p.assign(volume).append("\\"+std::to_string(i+curAddedFilenum)+format);
+					files.push_back(p);
+					createFileInternal(p);
+				}
+
+			curAddedFilenum+=num;
+			
+			// call chunkStore bld ;
+			//	
+			// create a new container
+            // std::wstring containerPath = CChunkStoreContainer::FormContainerPath(
+            //     m_storePath,
+            //     nextContainerId,
+            //     DefaultGeneration);
+			/*
+
+			ft.hr = CDedupFileFactory::Create(
+                                    tempContainerPath.c_str(),
+                                    GENERIC_READ | GENERIC_WRITE | DELETE,
+                                    FILE_SHARE_READ,
+                                    NULL,
+                                    CREATE_ALWAYS,
+#ifdef WOSS
+                                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH,
+#else
+                                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_NO_BUFFERING,
+#endif
+                                    NULL,
+                                    m_createFileContext,
+                                    &tempContainerFile,
+                                    m_isSecondaryPartition);
+			 */
 
 }
 
 
 
 //获取所有的文件名
-void DiskScanner::GetAllFiles( string path, vector<string>& files)  
+void DiskScanner::GetAllFilesInternal( string path, vector<string>& files)  
 {  
  
 	long   hFile   =   0;  
@@ -101,12 +112,12 @@ void DiskScanner::GetAllFiles( string path, vector<string>& files)
 				if(strcmp(fileinfo.name,".") != 0  &&  strcmp(fileinfo.name,"..") != 0)  
 				{
 					files.push_back(p.assign(path).append("\\").append(fileinfo.name) );
-					GetAllFiles( p.assign(path).append("\\").append(fileinfo.name), files ); 
+					GetAllFilesInternal( p.assign(path).append("\\").append(fileinfo.name), files ); 
 				}
 			}  
 			else  
 			{  
-				files.push_back(p.assign(path).append("\\").append(fileinfo.name) );  
+					files.push_back(p.assign(path).append("\\").append(fileinfo.name) );  
 			} 
  
 		}while(_findnext(hFile, &fileinfo)  == 0);  
@@ -116,7 +127,7 @@ void DiskScanner::GetAllFiles( string path, vector<string>& files)
  
 }  
  
- bool hasEnding (std::string const &fullString, std::string const &ending) {
+bool hasEnding (std::string const &fullString, std::string const &ending) {
     if (fullString.length() >= ending.length()) {
         return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
     } else {
@@ -125,7 +136,7 @@ void DiskScanner::GetAllFiles( string path, vector<string>& files)
 }
 
 //获取特定格式的文件名
-void DiskScanner::GetAllFormatFiles( string path, vector<string>& files,string format)  
+void DiskScanner::GetAllFormatFilesInternal( string path, vector<string>& files,string format)  
 {  
 	//文件句柄  
 	long   hFile   =   0;  
@@ -143,7 +154,7 @@ void DiskScanner::GetAllFormatFiles( string path, vector<string>& files,string f
 				if(strcmp(fileinfo.name,".") != 0  &&  strcmp(fileinfo.name,"..") != 0)  
 				{
 					//files.push_back(p.assign(path).append("\\").append(fileinfo.name) );
-					GetAllFormatFiles( p.assign(path).append("\\").append(fileinfo.name), files,format); 
+					GetAllFormatFilesInternal( p.assign(path).append("\\").append(fileinfo.name), files,format); 
 				}
 			}  
 			else  
@@ -161,51 +172,63 @@ void DiskScanner::GetAllFormatFiles( string path, vector<string>& files,string f
 void DiskScanner::GetAllFiles(vector<string>& files){
 
 	for(string path:defaultPath)
-			GetAllFiles(path,files);
+			GetAllFilesInternal(path,files);
 
 }
 
 void DiskScanner::GetAllFormatFiles(vector<string>& files,string format){
 
 	for(string path:defaultPath)
-			GetAllFormatFiles(path,files,format);
+			GetAllFormatFilesInternal(path,files,format);
 
 }
  
 
-// test 
-int main(){
 
-    // for test 
-  //  string filePath[2]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{EDD7F05F-1349-49E0-9924-14E8275D98AD}.ddp\\Data"};  
+// int DiskScanner::curAddedFilenum=0;
+// // test 
+// int main(){
 
- 	string filePath[2]={"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{E1B5B274-9511-4832-B8AF-4A8D4B826C8C}.ddp\\Data"};
+//     // for test 
+//   //  string filePath[2]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{EDD7F05F-1349-49E0-9924-14E8275D98AD}.ddp\\Data"};  
 
-    std::cout<<"test starts ......"<<std::endl;
+//  	string filePath[3]={"D:\\BlobServiceData","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{E1B5B274-9511-4832-B8AF-4A8D4B826C8C}.ddp\\Data"};
+
+//     std::cout<<"test starts ......"<<std::endl;
     
-    //FileInfoScan  scanner=DiskScanner();
-	DiskScanner  scanner;
+//     //FileInfoScan  scanner=DiskScanner();
+// 	DiskScanner  scanner;
 
-    for(string s :filePath)
-   		 scanner.setPath(s);
+//     // for(string s :filePath)
+//    	// 	 scanner.setPath(s);
 
 
-	vector<string> files;  
+// 	vector<string> files;  
+
+
+// 	scanner.createFiles(5,files);
  
-	//读取所有的文件，包括子文件的文件
-	//GetAllFiles(filePath, files);
+// 	//读取所有的文件，包括子文件的文件
+// 	//GetAllFiles(filePath, files);
  
-	//读取所有格式为ccc的文件
-	string format = ".ccc";
-	
-  	scanner.GetAllFormatFiles(files,format);
-	
-	
-    for(string s: files)
-        cout<<s<<std::endl;
+// 	//读取所有格式为ccc的文件
+// 	string format = ".ccc";
 
-	return 0;
+
+// 	// added twice
+// 	scanner.createFiles(5,files);
+	
+
+// 	cout<<"added file over "<<std::endl;
+
+//   	scanner.GetAllFormatFiles(files,format);
+	
+	
+//     for(string s: files)
+//         cout<<s<<std::endl;
+
+// 	return 0;
      
 
-}
+// }
  

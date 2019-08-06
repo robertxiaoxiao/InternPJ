@@ -1,4 +1,4 @@
-ChunkStoreMDS扩展设计文档 
+ChunkStoreMDS设计文档 
 
 #### 一  架构设计
 
@@ -16,17 +16,17 @@ ChunkStoreMDS扩展设计文档
 
 ​	     ChunkStoreMDS模块提供BalanceStore,StoreRecovery,ManageFolder支持，ManagerFolder暴露统一的FolderInfo接口来进行操作，FolderInfo接口可以被扩展为DatabaseManager（基于数据库获取文件目录信息）和DiskManager(在物理磁盘上扫描获取文件目录信息)。
 
-![1564971753670](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564971753670.png)
+![1565057765533](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1565057765533.png)
 
 ##### 1.3 关注点
 
-​		设计架构主要是解决Blbclient和Blbsvc的强关联问题，即在原有架构下，当Blbsvc一旦初始化ChunkStore完成后，就与对应的shareFolder中的特定Folder绑定。解决的主要思路是添加chunkStoreMDS模块，MDSserver负责对shareFolder进行管理，并且提供必要的接口供MDSclient调用，并且扩展chunkstoreLibrary中的相关方法以满足需要。主要关注以下两个方面：
+​		设计架构主要是解决Blbsvc和shareFolder的强关联问题，即在原有架构下，当Blbsvc一旦初始化ChunkStore完成后，就与对应的shareFolder中的特定Folder绑定。解决的主要思路是添加chunkStoreMDS模块，MDSserver负责对shareFolder进行管理，并且提供必要的接口供MDSclient调用，并且扩展chunkstoreLibrary中的相关方法以满足Blbsvc需要。主要关注以下两个方面：
 
 ​		(1)MDSserver模块，主要由四部分构成，BalancePolicy,MDSsvc,Recovery,FileFolder。
 
 ​		(2)MDSclient模块。
 
-###### 1.4  模块说明
+##### 1.4  模块说明
 
 ###### 1.4.1 MDSserver模块
 
@@ -45,7 +45,7 @@ ChunkStoreMDS扩展设计文档
 
 ##### 1.5  模块接口设计
 
-	###### 1.5.1  Public Interface 设计
+###### 1.5.1  Public Interface 设计
 
 | Public Interface                                             | Function                                                     |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -62,13 +62,11 @@ ChunkStoreMDS扩展设计文档
 | MDSclient.getAvalibalFile() | 提供可读写的chunkstore路径文件信息（可用于扩展chunkStore现有方法） |
 | MDSclient.Recover()         | 当MDSclient crash后恢复本地数据记录表                        |
 
-### 二 概要设计
+##### 1.6系统流程说明
 
-##### 2.1系统流程说明
+###### 1.6.1 设计流程 ：
 
-######	2.1.1 设计流程 ：
-
-​		客户端持有Blbclient和MDSclient，通过rpc调用ChunkStoreMDS，得到可读写的文件路径集合之后，通过调用Blbclient提供的chunkstore接口，主要包括以下三个过程：
+​		客户端持有Blbclient和MDSclient，通过rpc调用MDSserver服务，得到可读写的文件路径集合之后，通过调用Blbclient提供的chunkstorelib接口实现对应操作，主要包括以下三个过程：
 
 ​	   （1）根据可读写文件路径实例化chunkstore
 
@@ -76,19 +74,21 @@ ChunkStoreMDS扩展设计文档
 
 ​	   （3）读数据，根据chukStore实例进行读数据，在本地维持一个读写文件cache（存在读写过的文件路径信息已经返回给ChunkStoreMDS的情况），根据对应的文件路径确定后进行文件读取。
 
-######	2.1.2 Read 流程：
+###### 1.6.2 Read 流程：
 
-  	   当Blbsvc本地持有chunkstore实例读写过的文件路径，当加入chunkStoreMDS之后，存在可能把文件路径返还的情况（测试可做简化处理，将读写过的文件路径写入磁盘文件上，直接在磁盘文件上查找，现有的chunkstore.read()是在当前目录下持有路径中查找，需要扩展store->ReadChunk()方法)。流程图如下图所示。
+  	   当Blbsvc本地持有chunkstore实例读写过的文件路径cache(当加入chunkStoreMDS之后，存在可能把读写文件路径返还的情况),先checkCache获得可读文件路径集合，再进行ReadChunk()操作，如果cache中找不到，即读失败（默认只能读本地已操作文件）。流程图如下图所示。
 
-![1564972841695](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564972841695.png)
+![1565059136038](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1565059136038.png)
 
-###### 2.1.3 Write流程：
+###### 1.6.3 Write流程：
 
-​		 MDSclient直接RPC调用 chunkstoreMDS获得可写文件地址，内部进行文件路径的管理和分配（持有文件路径集合），完成写操作之后需要返回给ChunkStoreMDS更新文件目录信息，同时需要在本地记录写过的文件路径信息。流程图入下图所示。
+​		 MDSclient直接RPC调用 MDSsvc获得可写文件地址，内部进行文件路径的管理和分配（持有文件路径集合），完成写操作之后需要返回给ChunkStoreMDS更新文件目录信息，同时需要在本地cache中记录写过的文件路径信息。流程图入下图所示。
 
-![1564973052168](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1564973052168.png)
+![1565058941740](C:\Users\t-zhfu\AppData\Roaming\Typora\typora-user-images\1565058941740.png)
 
-##### 2.2 原型测试设计
+### 二 原型设计
+
+##### 2.1 原型测试设计
 
 ​		由于ChunkStoreMDS是一个必须满足分布式架构的系统，故而在Prototype的单机测试中，采用多线程来模拟不同的节点访问，来测试在并发情况下的表现。ChunkStoreMDS本身维护的是一个文件路径的集合（“.ccc“格式的文件路径），系统所实现的目标就是根据对应的chunkstore信息（在系统中体现为包含文件路径的文件信息结构体），进行文件路径（chunkstore初始化所必须的参数）的统一分发和管理。
 
@@ -102,7 +102,7 @@ ChunkStoreMDS扩展设计文档
 
 ​		（4）结合chunkStoreViewer集成测试读写(需要根据新逻辑扩展chunkstore部分方法);
 
-##### 2.3 扩展方法说明
+##### 2.2  扩展方法说明
 
 ```c++
 /*
@@ -119,7 +119,7 @@ ChunkStoreMDS扩展设计文档
 
 ​		b .当前写方法 ： (1) session查找(chunkstoreSession由storeID初始化 )
 
-​								 	(2) 找不到合适调用就创建一个container，FindnewContainerForTranction（new chunksize,new container）
+​								  	(2) 找不到合适调用就创建一个container，FindnewContainerForTranction（new chunksize,new container）
 
 ​		增加MDS扩展后方法：
 
@@ -129,7 +129,7 @@ ChunkStoreMDS扩展设计文档
 
 ​		 扩展方法中需要关注的类  chunkStoresession ，cchunkStore 。
 
-##### 2.4   原型中类与接口设计  
+##### 2.3  原型中类与接口设计  
 
 | Class  name          | Function                                                     |
 | -------------------- | ------------------------------------------------------------ |
@@ -142,7 +142,7 @@ ChunkStoreMDS扩展设计文档
 | FileHolder           | 维护一个逻辑文件夹（包含不同物理磁盘的文件），提供类似于os的文件夹集合操作（增删改查），提供Folder Recover功能 |
 | TestMDS              | 用于原型测试                                                 |
 
-##### 2.5  数据设计
+##### 2.4  数据设计
 
 ```c++
 // fileInfo maintained by chunkStoreMDS  
@@ -187,7 +187,7 @@ struct   client_Recovery_MSG{
 
 ```
 
-##### 2.6 关键方法设计
+##### 2.5 关键方法设计
 
 | Public API（一）                                             | Function                           |
 | ------------------------------------------------------------ | :--------------------------------- |
@@ -224,7 +224,7 @@ struct   client_Recovery_MSG{
 | BlbClient::read()             | 节点读取操作                                      |
 | BlbClient::insert()           | 节点插入操作                                      |
 
-##### 2.7  测试过程
+##### 2.6  测试过程
 
  		a. 单元测试
 

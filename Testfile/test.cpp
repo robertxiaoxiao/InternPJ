@@ -102,7 +102,7 @@ LPCWSTR stringToLPCWSTR(std::string orig)
 size_t origsize = orig.length() + 1;
     const size_t newsize = 100;
     size_t convertedChars = 0;
-wchar_t *wcstring = (wchar_t *)malloc(sizeof(wchar_t)*(orig.length()-1));
+wchar_t *wcstring = (char_t *)malloc(sizeof(wchar_t)*(orig.length()-1));
 mbstowcs_s(&convertedChars, wcstring, origsize, orig.c_str(), _TRUNCATE);
 
 return wcstring;
@@ -139,7 +139,6 @@ if (access(dir.c_str(), 0) == -1)
     string filepath1="C:\\Users\\Administrator\\Desktop\\file_demo_test1.txt";
 
 
-   
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
     DWORD dwShareMode = 0;
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = 0;
@@ -149,7 +148,6 @@ if (access(dir.c_str(), 0) == -1)
     //(p.assign(dir).append("1").append(".ccc")
     HANDLE handle = CreateFile(stringToLPCWSTR(filepath1), dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     printf("CreateFile -> HANDLE=0x%x\n", (unsigned int)handle);
-
 
 
 //           std::thread threads[10];
