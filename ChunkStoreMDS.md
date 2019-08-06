@@ -3,8 +3,8 @@
 ```c++
 /* 主要职责：维护一个chunkstore文件表
   实现的功能：
-   (1) 	初始化 folder信息，扫描物理磁盘获得chunkstore信息
-   （2）  提供两个基本操作: 
+   (1) 	 初始化 folder信息，扫描物理磁盘获得chunkstore信息
+   （2）   提供两个基本操作: 
     	1  markOwned() ;
    	    2  根据一定策略 分配Filelist findFileList() ;
     (3) 接受client读写过程信息
@@ -25,10 +25,10 @@ ChunkStoreMDS Manager  设置管理ChunkStoreMDS并保证单例
 /*
    主要职责 ： 提供chunkStore File信息的供应支持
    实现的功能：
-   （1） 初始化  文件列表动态增加
-   （2） insertchunkstore()   文件标记
+   （1）初始化  文件列表动态增加
+   （2）insertchunkstore()   文件标记
         内部采用多线程写，单元测试模拟多个节点访问情况
-   （3） sizeSensor(),态感知状态 需要请求的文件数  定期执行
+   （3）sizeSensor(),态感知状态 需要请求的文件数  定期执行
    (4) 强制请求文件列表，当负载过大的时候自动进行执行，兼容sensor()
    (5) 请求文件 to MDS ,
    （6）clear（） 清除已写文件

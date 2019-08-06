@@ -6,9 +6,13 @@
 */
 #include <vector>
 #include "FileFolder.cpp"
+
 #include <algorIThm>
 #include <functional>
+#include <string>
+#include <list>
 using namespace std;
+
 struct fileInfo
 {
 
@@ -58,7 +62,6 @@ typedef enum
 
 struct client_Recovery_MSG
 {
-        /* data */
         char *owner;
         vector<fileInfo> ownedFileList;
 };
@@ -67,14 +70,20 @@ class ChunkStoreMDS
 {
 
 private:
-
         //to control the os file operations
         fileFolder fholder;
+
+        // rest file size
+        int restFileSize;
+
+        // using file size   to simplfy the balance judge   and only change by deliverFiles()  and  updateFiles() ;
+        int usingFileSize;
 
         // to store the filelist  and must support concurrent read and write in some specific position
         std::vector<fileInfo> restfilelist;
 
         // askFiles and updateFile  sepeartedly
+        // using list for  eraseFile in vector is  expensive
         std::vector<fileInfo> usingfilelist;
 
         // fholder and filelist sync flag
@@ -89,11 +98,7 @@ public:
         ~ChunkStoreMDS();
 
         //init
-        void staticInit(fileFolder holder)
-        {
-
-                fholder = holder;
-        };
+        void staticInit(fileFolder &holder);
 
         // print MDS info
         void printState();
@@ -131,8 +136,8 @@ public:
         // write info succeed only in accepting return value and otherwise reset the  offset;
         void AotomicOPs(string filename);
 
-        // migrate  fromlist to to list
-        void migrateFileToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist, string filename);
+        // migrate  fromlist to to list  automatically  based on the userName ;  use vector random access to mark it . and then
+        void migrateFilesToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist);
 
         bool checkIfMeetNeed(size_t restsize, int askFiles, int rate);
 
@@ -144,8 +149,28 @@ ChunkStoreMDS::~ChunkStoreMDS()
 {
         //singleton memory recycle
         fholder.~fileFolder();
+
+        // manual destruct
         restfilelist.clear();
         usingfilelist.clear();
+}
+
+// init ffolder to restFilelist
+//  ffolder  settting complete
+void ChunkStoreMDS::staticInit(fileFolder &ffolder)
+{
+
+        fholder = ffolder;
+
+        for (int i = 0; i < fholder.files.size(); i++)
+        {
+                fileInfo temp = {fholder.files.at(i), false, "", 0};
+
+                restfilelist.push_back(temp);
+        }
+
+        //
+        printf("restfilelist  init  completed......... \r\n");
 }
 
 // mark the file  owned
@@ -165,8 +190,6 @@ void ChunkStoreMDS::markOwned(string filename, char *owner)
         {
                 temp->owner = owner;
 
-                migrateFileToList(restfilelist, usingfilelist, filename);
-
                 printf("mark owner successfully \r\n");
         }
 
@@ -176,13 +199,43 @@ exit:
         return;
 }
 
-void ChunkStoreMDS::migrateFileToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist, string filename)
+// to redivide , beacause we just mark fileinfo in using and not migrate them to the restfilelist  on time , so
+// we all know is the restfilelists prefers the rest fileinfo and the usingfilelist prefers the  using files;
+// that operation is expensive so we will call it less time than other ops
+void ChunkStoreMDS::migrateFilesToList(vector<fileInfo> &restlist, vector<fileInfo> &usinglist)
 {
 
-        // to do
+        // to record current state
+        int usingsize = usinglist.size();
+
+        for (auto i = 0; i < restlist.size(); i++)
+        {
+                //  more sufficient
+                //  prefer not to compare string
+                if (restlist[i].Beusing)
+                {
+                        fileInfo temp = restlist[i];
+                        usinglist.push_back(temp);
+                        restlist.erase(restlist.begin() + i);
+                        // back
+                        i--;
+                }
+        }
+
+        for (auto i = 0; i < usinglist.size() && i < usingsize; i++)
+        {
+                if (!usinglist[i].Beusing)
+                {
+                        fileInfo temp = usinglist[i];
+                        restlist.push_back(temp);
+                        usinglist.erase(usinglist.begin() + i);
+                        // pointer back
+                        i--;
+                }
+        }
 }
 
-// get specific file addr to modify
+// get specific file addr to modify  and  called by updateFileinfo()
 fileInfo *ChunkStoreMDS::ModifyFileinfo(string filename)
 {
 
@@ -202,28 +255,9 @@ fileInfo *ChunkStoreMDS::ModifyFileinfo(string filename)
         return NULL;
 }
 
-// clear file owner
-void ChunkStoreMDS::resetFileinfo(string filename)
-{
-
-        for (size_t i = 0; i < usingfilelist.size(); i++)
-        {
-                /* code */
-                fileInfo &temp = usingfilelist.at(i);
-                if (temp.filepath == filename)
-                {
-                        printf("reset file :%s .....  \r\n", temp.filepath);
-                        usingfilelist.erase(usingfilelist.begin() + i);
-                        printf("reset file  completed .....  \r\n");
-                        return;
-                }
-        }
-}
-
 // print MDS info
 void ChunkStoreMDS::printState()
 {
-
         printf("ChunkStoreMDS current state : \r\n");
 
         // list all fileinfo
@@ -232,27 +266,27 @@ void ChunkStoreMDS::printState()
         int cnt = 0;
         int num = 0;
 
+        //
         for (fileInfo f : usingfilelist)
 
         {
                 printf("file_%d:  \r\n", num++);
-                printf("         state:      busy\r\n");
+                printf("         state:      %s\r\n", f.Beusing ? "busy" : "free");
                 printf("         filepath:   %s\r\n", f.filepath);
-                printf("         owner:      %s\r\n", f.owner);
+                printf("         owner:      %s\r\n", f.Beusing ? f.owner : "");
                 printf("         offset:     %I64d\r\n", f.offset);
-                cnt++;
         }
 
         for (fileInfo f : restfilelist)
         {
                 printf("file_%d:  \r\n", cnt++);
-                printf("         state:      free\r\n");
+                printf("         state:      %s\r\n", f.Beusing ? "busy" : "free");
                 printf("         filepath:   %s\r\n", f.filepath);
-                printf("         owner:      vacant\r\n", f.owner);
+                printf("         owner:      vacant\r\n", f.Beusing ? f.owner : "");
                 printf("         offset:     %I64d\r\n", f.offset);
         }
 
-        printf("Total state:  \r\n", num++);
+        printf("Total state:  \r\n");
         printf("             all   files: %d   \r\n", num + cnt);
         printf("             Using files: %d   \r\n", num);
         printf("             free  files: %d   \r\n", cnt);
@@ -274,11 +308,12 @@ bool a_greater_b(const fileInfo &r, const fileInfo &s)
         return r.offset > s.offset;
 }
 
+// checkFiles and asking_files_size_rate
 bool ChunkStoreMDS::checkIfMeetNeed(size_t restsize, int askFiles, int rate)
 {
 
         //enough
-        if (restsize > askFiles)
+        if (restFileSize > askFiles)
                 return true;
         else
         {
@@ -287,7 +322,7 @@ bool ChunkStoreMDS::checkIfMeetNeed(size_t restsize, int askFiles, int rate)
                 AskMoreFilesForcibly(rate);
 
                 // recursive askForfiles  until its true
-                if (checkIfMeetNeed(restfilelist.size, askFiles, 2 * rate))
+                if (checkIfMeetNeed(restFileSize, askFiles, 2 * rate))
                         return true;
         }
 }
@@ -339,7 +374,7 @@ void ChunkStoreMDS::deliverFiles(Request_MSG msg, vector<fileInfo> &ownerFileLis
         }
 };
 
-#define deafult_Asking_File_Size 100
+#define deafult_Asking_File_Size 10
 
 // called by other function explicitly  and rate to optimize the asking file times
 void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
@@ -348,33 +383,27 @@ void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
         // get more file in folder
         fholder.createMoreFile(deafult_Asking_File_Size * rate);
 
-        // start sync
-        // catch any errors
-        try
+        int addsize = deafult_Asking_File_Size * rate;
+
+        //update restfilesize
+        restFileSize += addsize;
+
+        //update restfiles
+        vector<string>::iterator iter1;
+        iter1 = fholder.files.end();
+        for (int i = 0; i < addsize; i++)
         {
-                sync = 1;
-                vector<string> &tempList = fholder.files;
-
-                int size = tempList.size();
-
-                for (int i = 0; i < deafult_Asking_File_Size * rate; i++)
-                {
-                        // init free file
-                        fileInfo temp{tempList.at(size - 1 - i), false, "", 0};
-
-                        restfilelist.push_back(temp);
-                }
-
-                // sync reset
-                sync = 0;
+                fileInfo temp = {*(iter1 - i - 1), false, "", 0};
+                restfilelist.push_back(temp);
         }
-        catch (...)
-        {
-                sync = 0;
-        }
+        
+        
+         printf("Asking %d files successfully  \r\n",addsize);
+      
 }
 
 // timely check for more files
+
 // for windows timer call
 void ChunkStoreMDS::AskMoreFilesTimely()
 {
@@ -412,7 +441,6 @@ void ChunkStoreMDS::senseCapcity(double rest_rate)
 }
 
 //  static init fholder for the first call
-
 // entire filehoder sync with  restfilelist
 //   1   HolderAutoUpdate   copy all file into restfilelist
 //   2   AskMoreFilesForcibly  or AskMoreFilestimely  push_back into the restfilelist ;
@@ -433,6 +461,7 @@ void ChunkStoreMDS::HolderAutoUpdate()
 
 void ChunkStoreMDS::fileHolderRecover()
 {
+
         // to do
 }
 
@@ -460,7 +489,7 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
         }
 }
 
-// to recover client fileinfo  just for test
+// to recover client fileinfo
 client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
 {
 
@@ -470,7 +499,7 @@ client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
         for (fileInfo finfo : usingfilelist)
         {
 
-                if (strcmp(owner, finfo.owner) == 0)
+                if (std::strcmp(owner, finfo.owner) == 0)
                         // the last call state and may casue  inconsistency
                         m.ownedFileList.push_back(finfo);
         }
@@ -479,7 +508,3 @@ client_Recovery_MSG ChunkStoreMDS::Client_Revocer_Help(char *owner)
 
         return m;
 }
-
-
-
-//

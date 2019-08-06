@@ -15,7 +15,6 @@ public:
 
     vector<fileInfo>  localFilelist ;
 
-
     //  bind client to specific MDSsvc
     void bindMDS(ChunkStoreMDS*  tempMDS);
 

@@ -1,132 +1,169 @@
-#include  <stdio.h>
-#include  <iostream>
+#include <stdio.h>
+#include <iostream>
 #include <string>
 #include <vector>
-#include "fileFolder.h"
-
+#include "DiskScanner.h"
+#include "FileInfoScan.cpp"
 using namespace std;
+class fileFolder
+{
 
-/*
-   to implements the os operations in filefolder 
- */
+private:
+    // cache path
+    string cacheTxtPath;
 
-/*
-       to do : 并发控制
- */
+public:
+    DiskScanner filescanner;
 
-  //  ask for files 
- //  defalut string for test 
-string testFiles[3]={"1.ccc","2.ccc","3.ccc"};
+    // file name space
+    std::vector<std::string> files;
 
+    // last modified position
+    int lastModifiedsize;
 
-string volume[3]={"D:/"};
+    fileFolder(DiskScanner fileScanner)
+    {
 
+        filescanner = fileScanner;
+        filescanner.GetAllFormatFiles(files,".ccc");
 
+        // mark filelast size ;
+        lastModifiedsize = filescanner.curAddedFilenum;
+    };
 
-
-
-// default construct 
-   fileFolder::fileFolder(FileInfoScan fileScanner){ 
-
-        files = vector<string>() ;
-        filescanner=fileScanner;
-  }
-
-
-
-
-// release files memory
-   fileFolder::~fileFolder(){
-    
+    ~fileFolder()
+    {
+        // manual destruct
         files.clear();
-   };
+    };
 
-    //  list files
-  void fileFolder::listFiles(){
-        printf("current folder files: \r\n") ;
-        int i=0;
-        for (auto  s: files)
+    // print ctrl files
+    void listFiles()
+    {
+        for (auto i = 0; i < files.size(); i++)
+            cout << "file_" << i << ":   " << files.at(i) << std::endl;
+    };
+
+    // create file ;
+    void createMoreFile(int filenum)
+    {
+        filescanner.createFiles(filenum, files);
+
+        // ensure file id incre
+       // filescanner.curAddedFilenum+=filenum;
+
+        // mark modify size
+        lastModifiedsize += filenum;
+        cout << "successfully add files :" << filenum << std::endl;
+    };
+
+    // just for test recovery
+    void clearFiles()
+    {
+        files.clear();
+    }
+
+
+    // add file ;
+    void addFile(std::string file)
+    {
+        files.push_back(file);
+        cout << "successfully add file :" << file << std::endl;
+    };
+
+    // delete file;
+    void deleteFile(std::string filename)
+    {
+        int i = checkFileContained(filename);
+
+        if (i != -1)
         {
-            /* code */
-            printf("file_%d      %s \r\n",i++,s.c_str());
+            files.erase(files.begin() + i);
+            cout << "successfully delete file :" << filename << std::endl;
+            return;
         }
-        
+
+        cout << " file  not exist :" << filename << std::endl;
+    };
+
+    //  check if file in fileFolder
+    int checkFileContained(string filename)
+    {
+
+        for (auto i = 0; i < files.size(); i++)
+            if (files.at(i).compare(filename) == 0)
+                return i;
+
+        return -1;
+    };
+
+
+    // 配置恢复路径
+    void EnsureRecovery(string s)
+    {
+        cacheTxtPath = s; 
     }
 
 
+    // "write catch"
+    void cache(){
+        
+        std::ofstream location_out;
+		location_out.open(cacheTxtPath, std::ios::out | std::ios::app);
 
-  
-
-
-    // ask for other api to get files
-    void fileFolder::createMoreFile(int  filenum){
-    
-        // create chunkstore file in specific volume
-        for(string  s: testFiles)
+        if(location_out.is_open())
         {
-                addFile(s);
+
+            for(string s:files)
+                location_out<<s<<endl;
+
+	        cout<<"cache builds in  :"<<cacheTxtPath<<std::endl;
+            return;
         }
 
+        cout<<"cache file cannot be opened  :"<<cacheTxtPath<<std::endl;
+	
     }
+ 
+};
+
+//set fileAdded begin idx
+int DiskScanner::curAddedFilenum=0;
+
+int main(){
+     DiskScanner  diskscannaer;
+
+     string filePath[1]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
+
+    for(string s :filePath)
+        diskscannaer.setPath(s);
+
+        // logical folder 
+        fileFolder ffolder(diskscannaer);
+ 
+        //cache
+        ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
 
 
+        ffolder.listFiles();
+
+        ffolder.createMoreFile(5);
+
+         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+          cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
 
 
-    // add files into  folder 
-     void fileFolder::addFile(string s){
-            files.push_back(s);
-     }
+        ffolder.cache();
+
+        ffolder.createMoreFile(5);
 
 
-    /*
-    if file in  files  rteurn index;
-    
-    else 
-        return   -1;
-     */
+        cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+        cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
 
-     int   fileFolder::checkFileContained(string ts){
-            for(int i =0; i<files.size();i++)
-                    if(ts.compare(files[i])==0)
-                    {
-                        printf("file has been found int idx %d\r\n",i);
-                            return i;
-                    }
-
-            else 
-            {       printf("file has not been found \r\n ");
-                        return -1;
-            }
-     }
-
-
-    void  fileFolder::deleteFile(string ts) {
-
-            int idx=checkFileContained(ts);
-
-            if(idx==-1){
-
-                printf("the input filrpath not exist\r\n")   ;  
-            }
-            else
-            {
-                files.erase(files.begin()+idx);
-                 printf("the file  %s has been deleted\r\n" ,ts) ;
-            }
-    
-    }
-
-// unit test
-    int main(){
-
-        fileFolder  s2;
+        ffolder.listFiles();
         
-        s2.createMoreFile();
-        s2.listFiles();
-        s2.checkFileContained("1.ccc");
-        s2.checkFileContained("4.ccc");
-        s2.deleteFile("1.ccc");
-        s2.listFiles();
-        s2.~fileFolder();
 
-    }
+return 0;
+
+}

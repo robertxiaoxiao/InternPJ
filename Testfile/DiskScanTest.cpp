@@ -1,11 +1,17 @@
+
+#define __USE_MINGW_ANSI_STDIO 0
 #include <iostream>
 #include <vector>
-#include <stdio.h>
+
 #include <io.h>
 #include <iomanip>
 #include <math.h>
 #include "stdlib.h"
 #include "Windows.h"
+#include <fstream>
+#include <string>
+
+
 using  namespace  std  ;
 
 void GetAllFiles( string path, std::vector<string>& files)  ;
@@ -13,25 +19,36 @@ void GetAllFiles( string path, std::vector<string>& files)  ;
 //获取特定格式的文件名
 void GetAllFormatFiles( string path, vector<string>& files,string format) ;
 
+
+void createFile(string path);
+
 int main(){
 
     
-	string filePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob";  
+	string volume = "D:\\BlobServiceData";  
 
-	vector<string> files;  
+
+	string p;
+	for(int i=0;i<5;i++)
+		{
+			createFile(p.assign(volume).append("\\"+std::to_string(i)+".ccc"));
+
+		}
+
+// 	vector<string> files;  
 
  
-	//读取所有的文件，包括子文件的文件
-	//GetAllFiles(filePath, files);
+// 	//读取所有的文件，包括子文件的文件
+// 	//GetAllFiles(filePath, files);
  
-	//读取所有格式为ccc的文件
-	string format = ".ccc";
+// 	//读取所有格式为ccc的文件
+// //	string format = ".ccc";
 
-//	GetAllFiles(filePath,files) ;
-	GetAllFormatFiles(filePath, files,format);
+// //	GetAllFiles(filePath,files) ;
+// //	GetAllFormatFiles(filePath, files,format);
 
-    for(string s: files)
-        cout<<s<<std::endl;
+//     for(string s: files)
+//         cout<<s<<std::endl;
 
 	return 0;
 
@@ -117,3 +134,10 @@ void GetAllFormatFiles( string path, vector<string>& files,string format)
 
 
 
+
+void createFile(string path,string format){
+
+		std::ofstream location_out;
+		location_out.open(path, std::ios::out | std::ios::app);
+		cout<<"cretae file :"<<path<<std::endl;
+}
