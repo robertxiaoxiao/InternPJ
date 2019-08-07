@@ -5,6 +5,7 @@
 #include "DiskScanner.h"
 #include "FileInfoScan.cpp"
 using namespace std;
+
 class fileFolder
 {
 
@@ -20,6 +21,10 @@ public:
 
     // last modified position
     int lastModifiedsize;
+    fileFolder(){
+
+    }
+
 
     fileFolder(DiskScanner fileScanner)
     {
@@ -124,46 +129,51 @@ public:
         cout<<"cache file cannot be opened  :"<<cacheTxtPath<<std::endl;
 	
     }
+
+    void recover(){
+
+
+    }
  
 };
 
 //set fileAdded begin idx
-int DiskScanner::curAddedFilenum=0;
 
-int main(){
-     DiskScanner  diskscannaer;
 
-     string filePath[1]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
+// int main(){
+//      DiskScanner  diskscannaer;
 
-    for(string s :filePath)
-        diskscannaer.setPath(s);
+//      string filePath[1]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
 
-        // logical folder 
-        fileFolder ffolder(diskscannaer);
+//     for(string s :filePath)
+//         diskscannaer.setPath(s);
+
+//         // logical folder 
+//         fileFolder ffolder(diskscannaer);
  
-        //cache
-        ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
+//         //cache
+//         ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
 
 
-        ffolder.listFiles();
+//         ffolder.listFiles();
 
-        ffolder.createMoreFile(5);
+//         ffolder.createMoreFile(5);
 
-         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-          cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
-
-
-        ffolder.cache();
-
-        ffolder.createMoreFile(5);
+//          cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+//           cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
 
 
-        cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-        cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+//         ffolder.cache();
 
-        ffolder.listFiles();
+//         ffolder.createMoreFile(5);
+
+
+//         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+//         cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+
+//         ffolder.listFiles();
         
 
-return 0;
+// return 0;
 
-}
+// }

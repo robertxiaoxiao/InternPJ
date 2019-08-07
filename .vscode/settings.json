@@ -55,6 +55,8 @@
         "resumable": "cpp",
         "future": "cpp",
         "mutex": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "deque": "cpp",
+        "queue": "cpp"
     }
 }
