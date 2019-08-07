@@ -94,7 +94,6 @@ void DiskScanner::createFiles(int num , std::vector<string>& files){
 }
 
 
-
 //获取所有的文件名
 void DiskScanner::GetAllFilesInternal( string path, vector<string>& files)  
 {  
