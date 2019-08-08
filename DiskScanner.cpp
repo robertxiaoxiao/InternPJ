@@ -36,10 +36,13 @@ DiskScanner::DiskScanner(){
 
 
 void createFileInternal(string path){
+	/* 
+		test just for uniplemented method  and  integrated with chunkstore.createfile(filepath)
 
 		std::ofstream location_out;
 		location_out.open(path, std::ios::out | std::ios::app);
 		cout<<"cretae file :"<<path<<std::endl;
+		*/
 }
 
 

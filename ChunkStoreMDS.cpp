@@ -15,6 +15,7 @@
 
 using namespace std;
 
+
 struct fileInfo
 {
 
@@ -37,7 +38,6 @@ struct Request_MSG
         char *owner;
 
         int fileNum;
-
 };
 
 //client return message
@@ -67,15 +67,14 @@ struct client_Recovery_MSG
         vector<fileInfo> ownedFileList;
 };
 
-
 // file pos
-struct filepos{
-        
-        //  if in restfilelist
-        bool inRest ;
-        // the idx 
-        int idx ;
+struct filepos
+{
 
+        //  if in restfilelist
+        bool inRest;
+        // the idx
+        int idx;
 };
 
 class ChunkStoreMDS
@@ -110,17 +109,22 @@ public:
         // desturct
         ~ChunkStoreMDS();
 
+        void staticInit();
+
         //init
-        void staticInit(fileFolder &holder);
+        void staticInitInternal(fileFolder &holder);
 
         // print MDS info
         void printState();
 
-        // mark file at one's own
+        // mark file at one's own  for test
         void markOwned(string filename, char *owner);
 
+        // public interface and  hide the balance policy setting
+        void deliverFiles(Request_MSG &msg, Return_MSG &return_msg);
+
         //to deliver files based on specific policy  and must support concurrent ops
-        void deliverFiles(Request_MSG &msg, Return_MSG &return_msg, BALANCE_POLICY policy);
+        void deliverFilesInternal(Request_MSG &msg, Return_MSG &return_msg, BALANCE_POLICY policy);
 
         // to sense the capacity of rest files and prepare to ask for more files
         void senseCapcity(double restrate);
@@ -128,7 +132,10 @@ public:
         // add files in filelist and fholder nonsyc update ;
         void AskMoreFilesTimely();
 
-        // fileholder update file info accorrding to filelist;
+        /*  fileholder update file info accorrding to filelist;    
+            now it must created files all  before it update filelists 
+            to do  : balance   
+        */
         void HolderAutoUpdate();
 
         //fileholder recovers from crash ,and test using a specific files.txt ;
@@ -142,12 +149,7 @@ public:
 
         //  to serach and modify file info  and markowned call this func
         // if write-file succeeds and modify the offset;
-        void ModifyFileinfo(string filename ,filepos& filepos);
-
-        void resetFileinfo(string filename);
-
-        // write info succeed only in accepting return value and otherwise reset the  offset;
-        void AotomicOPs(string filename);
+        void ModifyFileinfo(string filename, filepos &filepos);
 
         // migrate  fromlist to to list  automatically  based on the userName ;  use vector random access to mark it . and then
         void migrateFilesToList(vector<fileInfo> &fromlist, vector<fileInfo> &tolist);
@@ -178,9 +180,27 @@ ChunkStoreMDS::~ChunkStoreMDS()
         usingfilelist.clear();
 }
 
+void ChunkStoreMDS::staticInit()
+{
+        DiskScanner diskscannaer;
+
+        string filePath[1] = {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};
+
+        for (string s : filePath)
+                diskscannaer.setPath(s);
+
+        // logical folder
+        fileFolder ffolder(diskscannaer);
+
+        //cache
+        ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
+
+        // ChunkStoreMDS mds;
+        staticInitInternal(ffolder);
+}
 // init ffolder to restFilelist
 //  ffolder  settting complete
-void ChunkStoreMDS::staticInit(fileFolder &ffolder)
+void ChunkStoreMDS::staticInitInternal(fileFolder &ffolder)
 {
 
         fholder = ffolder;
@@ -194,7 +214,7 @@ void ChunkStoreMDS::staticInit(fileFolder &ffolder)
 
         // init restfilesize
         restFileSize = ffolder.files.size();
-        usingFileSize=0;
+        usingFileSize = 0;
 
         printf("restfilelist  init  completed......... \r\n");
 }
@@ -204,10 +224,10 @@ void ChunkStoreMDS::markOwned(string filename, char *owner)
 {
 
         //get the reference of specific file
-        filepos  fpos={false,-1};
-        ModifyFileinfo(filename,fpos);
+        filepos fpos = {false, -1};
+        ModifyFileinfo(filename, fpos);
 
-        if (fpos.idx==-1)
+        if (fpos.idx == -1)
         {
                 printf("file path not exist \r\n");
                 goto exit;
@@ -215,11 +235,11 @@ void ChunkStoreMDS::markOwned(string filename, char *owner)
 
         else
         {
-                if(fpos.inRest)     
-                              restfilelist.at(fpos.idx).owner=owner;
-                 else 
-                        usingfilelist.at(fpos.idx).owner=owner;
-        
+                if (fpos.inRest)
+                        restfilelist.at(fpos.idx).owner = owner;
+                else
+                        usingfilelist.at(fpos.idx).owner = owner;
+
                 printf("mark owner successfully \r\n");
         }
 
@@ -266,28 +286,28 @@ void ChunkStoreMDS::migrateFilesToList(vector<fileInfo> &restlist, vector<fileIn
                 }
         }
 
-         printf("migrate      files  complete: \r\n");
+        printf("migrate      files  complete: \r\n");
 }
 
 // get specific file addr to modify  and  called by updateFileinfo()
-// freeze the main memory and ensure to  get the specific idx 
-void ChunkStoreMDS::ModifyFileinfo(string filename,filepos& filepos)
+// freeze the main memory and ensure to  get the specific idx
+void ChunkStoreMDS::ModifyFileinfo(string filename, filepos &filepos)
 {
 
-        for(int i =0;i<usingfilelist.size();i++)
-                if(usingfilelist.at(i).filepath.compare(filename)==0)
-                       {
-                                filepos.inRest=false;
-                                filepos.idx = i;
-                                return;
-                        }
-        for(int i =0;i<restfilelist.size();i++)
-                if(restfilelist.at(i).filepath.compare(filename)==0)
-                       {
-                                filepos.inRest=true;
-                                filepos.idx = i;
-                                return;
-                        }
+        for (int i = 0; i < usingfilelist.size(); i++)
+                if (usingfilelist.at(i).filepath.compare(filename) == 0)
+                {
+                        filepos.inRest = false;
+                        filepos.idx = i;
+                        return;
+                }
+        for (int i = 0; i < restfilelist.size(); i++)
+                if (restfilelist.at(i).filepath.compare(filename) == 0)
+                {
+                        filepos.inRest = true;
+                        filepos.idx = i;
+                        return;
+                }
 }
 
 // print MDS info
@@ -322,7 +342,7 @@ void ChunkStoreMDS::printState()
         }
 
         printf("Total state:  \r\n");
-        printf("             all   files: %d   \r\n", restFileSize+usingFileSize);
+        printf("             all   files: %d   \r\n", restFileSize + usingFileSize);
         printf("             Using files: %d   \r\n", usingFileSize);
         printf("             free  files: %d   \r\n", restFileSize);
 }
@@ -348,7 +368,7 @@ bool a_greater_b(const fileInfo &r, const fileInfo &s)
 bool ChunkStoreMDS::checkIfMeetNeed(int askFiles, int rate)
 {
 
-        //enough    extrem situaition   restfilesize all in using files 
+        //enough    extrem situaition   restfilesize all in using files
         if (restFileSize > askFiles)
                 return true;
         else
@@ -360,8 +380,6 @@ bool ChunkStoreMDS::checkIfMeetNeed(int askFiles, int rate)
 
                 // recursive askForfiles  until its true
                 checkIfMeetNeed(askFiles, 2 * rate);
-                 
-    
         }
 }
 
@@ -371,7 +389,7 @@ bool ChunkStoreMDS::checkIfMeetNeed(int askFiles, int rate)
 void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
 {
 
-        // get more file in folder
+        // get more files in folder
         fholder.createMoreFile(deafult_Asking_File_Size * rate);
 
         int addsize = deafult_Asking_File_Size * rate;
@@ -396,8 +414,13 @@ void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
 
 // for windows timer call
 void ChunkStoreMDS::AskMoreFilesTimely()
-{
+{       
+        // get more files in folder
         fholder.createMoreFile(deafult_Asking_File_Size);
+
+        //update restfilesize
+        restFileSize += deafult_Asking_File_Size;
+
         vector<string> &tempList = fholder.files;
         for (int i = 0; i < deafult_Asking_File_Size; i++)
         {
@@ -408,13 +431,21 @@ void ChunkStoreMDS::AskMoreFilesTimely()
         }
 }
 
+//   public interface for MDSclient call
+void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg)
+{
+
+        //  BALANCE_POLICY  can be setted dynamically
+        deliverFilesInternal(msg, return_msg, BALANCE_POLICY::STORAGE_SIZE);
+}
+
 //asking file rate
 #define default_rate 1
 
 //std::mutex l;
 // deliver files according to policy
 // must support  concurrent
-void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg, BALANCE_POLICY policy)
+void ChunkStoreMDS::deliverFilesInternal(Request_MSG &msg, Return_MSG &return_msg, BALANCE_POLICY policy)
 {
 
         char *owner = msg.owner;
@@ -448,20 +479,22 @@ void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg, BALAN
 
                 // all files in restfile are used but not miagrated ...
 
-                while (cnt < msg.fileNum&&i<restfilelist.size())
+                while (cnt < msg.fileNum && i < restfilelist.size())
                 {
 
                         if (restfilelist[i].Beusing)
-                                //skip using but not updated file
-                               { i++;
-                                        if(i==restfilelist.size())
+                        //skip using but not updated file
+                        {
+                                i++;
+                                if (i == restfilelist.size())
                                 {
-                                        printf(" restfile in not enough \r\n", msg.owner);
-                                        AskMoreFilesForcibly(msg.fileNum-cnt);
+                                        printf("restfile in not enough \r\n", msg.owner);
+
+                                        AskMoreFilesForcibly((int)(msg.fileNum - cnt) / deafult_Asking_File_Size + 1);
                                         break;
                                 }
-                               }
-                
+                        }
+
                         {
                                 // markusing
                                 restfilelist[i].owner = msg.owner;
@@ -475,26 +508,22 @@ void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg, BALAN
 
                                 // insert a file
                                 cnt++;
-                                i++ ;
+                                i++;
 
-                                if(i==restfilelist.size())
+                                if (i == restfilelist.size())
                                 {
-                                        printf(" restfile in not enough \r\n", msg.owner);
-                                        AskMoreFilesForcibly(msg.fileNum-cnt);
+                                        printf("restfile in not enough \r\n", msg.owner);
+                                        AskMoreFilesForcibly(msg.fileNum - cnt);
                                         break;
                                 }
-                                
-                             
                         }
-                          
                 }
 
-//asking more files 
-                             
+                //asking more files
 
-                usingFileSize+=msg.fileNum;
+                usingFileSize += msg.fileNum;
 
-                printf(" deliver files to %s completed  \r\n", msg.owner);
+                printf("deliver files to %s completed  \r\n", msg.owner);
 
                 break;
         }
@@ -512,14 +541,12 @@ void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg, BALAN
 void ChunkStoreMDS::senseCapcity(double rest_rate)
 {
 
-
-        if(usingFileSize==0)
+        if (usingFileSize == 0)
         {
                 printf("current state  : full rest   \r\n");
-                return ;
-
+                return;
         }
-        if ((double)restFileSize / (double)(usingFileSize+restFileSize)  < rest_rate)
+        if ((double)restFileSize / (double)(usingFileSize + restFileSize) < rest_rate)
         {
                 printf("current state  : need to balance  \r\n");
 
@@ -527,7 +554,7 @@ void ChunkStoreMDS::senseCapcity(double rest_rate)
 
                 printf("balance proceeding.....  \r\n");
 
-                while ((double)restFileSize / (double)(usingFileSize+restFileSize) < rest_rate)
+                while ((double)restFileSize / (double)(usingFileSize + restFileSize) < rest_rate)
                         AskMoreFilesForcibly(default_rate * 10);
 
                 printf("balance completed.....  \r\n");
@@ -535,7 +562,7 @@ void ChunkStoreMDS::senseCapcity(double rest_rate)
 
         else
         {
-                printf("current MDS rest_rate  : %d    \r\n", (double)restFileSize /  (double)(usingFileSize + restFileSize));
+                printf("current MDS rest_rate  : %f   \r\n", (double)restFileSize / (double)(usingFileSize + restFileSize));
                 printf("current MDS state  :  well  \r\n");
                 return;
         }
@@ -597,35 +624,34 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
         //  update mds fileinfo  according to client_return_msg
         // vector<fileInfo> &writenFiles = msg.files;
 
-        filepos  fpos=filepos{false,-1};
+        filepos fpos = filepos{false, -1};
 
         for (fileInfo finfo : msg.files)
         {
                 /* code */
-                ModifyFileinfo(finfo.filepath,fpos);
+                ModifyFileinfo(finfo.filepath, fpos);
 
                 if (fpos.idx != -1)
-                {       
-                        // maybe sometimes the marked file has not been migrated 
-                        if(fpos.inRest)
-                        {       
-                                restfilelist.at(fpos.idx).owner="";
-                                restfilelist.at(fpos.idx).offset=finfo.offset;
-                                restfilelist.at(fpos.idx).Beusing=false;
+                {
+                        // maybe sometimes the marked file has not been migrated
+                        if (fpos.inRest)
+                        {
+                                restfilelist.at(fpos.idx).owner = "";
+                                restfilelist.at(fpos.idx).offset = finfo.offset;
+                                restfilelist.at(fpos.idx).Beusing = false;
                         }
-                        else {
-                                usingfilelist.at(fpos.idx).owner="";
-                                usingfilelist.at(fpos.idx).offset=finfo.offset;
-                                usingfilelist.at(fpos.idx).Beusing=false;        
-
-                         }
+                        else
+                        {
+                                usingfilelist.at(fpos.idx).owner = "";
+                                usingfilelist.at(fpos.idx).offset = finfo.offset;
+                                usingfilelist.at(fpos.idx).Beusing = false;
+                        }
 
                         printf("return  writenfiles from  client: %s     beginning.....  \r\n", owner);
-                
                 }
 
                 // reset
-                fpos.idx=-1;
+                fpos.idx = -1;
         }
 
         restFileSize += msg.files.size();
@@ -638,114 +664,135 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
 void ChunkStoreMDS::Client_Revocer_Help(client_Recovery_MSG &msg)
 {
 
-        // client_Recovery_MSG m = {};
-        // m.owner = msg.owner;
+        
 
-        // for (fileInfo finfo : usingfilelist)
-        // {
+        for (fileInfo finfo : usingfilelist)
+        {
+                // to decrease the string compare op times 
+                if (finfo.Beusing)
+                {
+                      if (strcmp(msg.owner, finfo.owner) == 0)
+                                // the last call state and may casue  inconsistency
+                                msg.ownedFileList.push_back(fileInfo(finfo));
+                }
+        }
 
-        //         if (std::strcmp(msg.owner, finfo.owner) == 0)
-        //                 // the last call state and may casue  inconsistency
-        //                 m.ownedFileList.push_back(finfo);
-        // }
+        for (fileInfo finfo : restfilelist)
+        {
+                if (finfo.Beusing)
+                {
+                        if (strcmp(msg.owner, finfo.owner) == 0)
+                                // the last call state and may casue  inconsistency
+                                msg.ownedFileList.push_back(fileInfo(finfo));
+                }
+        }
 
-        // printf("client: %s   recovery  completed.....  \r\n", msg.owner);
+        printf("client: %s   recovery  completed.....  \r\n", msg.owner);
 }
 
 int DiskScanner::curAddedFilenum = 0;
 
-// unit test
-int main()
-{
+// // unit test
+// int main()
+// {
 
-// compile cmd g++  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDS.cpp C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp   C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp  -o test
-//g++  F:\InternPj\InternPJ\ChunkStoreMDS.cpp  F:\InternPj\InternPJ\DiskScanner.cpp  F:\InternPj\InternPJ\FileFolder.cpp -o test
+//         // compile cmd g++  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDSManager.cpp  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDS.cpp C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp   C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp  -o test
 
-        DiskScanner diskscannaer;
+//         //g++  F:\InternPj\InternPJ\ChunkStoreMDS.cpp  F:\InternPj\InternPJ\DiskScanner.cpp  F:\InternPj\InternPJ\FileFolder.cpp -o test
 
-        string filePath[1] = {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};
+//         // DiskScanner diskscannaer;
 
-        for (string s : filePath)
-                diskscannaer.setPath(s);
+//         // string filePath[1] = {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};
 
-        // logical folder
-        fileFolder ffolder(diskscannaer);
+//         // for (string s : filePath)
+//         //         diskscannaer.setPath(s);
 
-        //cache
-        ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
+//         // // logical folder
+//         // fileFolder ffolder(diskscannaer);
 
-        ChunkStoreMDS mds;
-        mds.staticInit(ffolder);
+//         // //cache
+//         // ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
 
-        //  test  add files
-        mds.AskMoreFilesForcibly(3);
+//         ChunkStoreMDS mds;
+//         // mds.staticInitInternal(ffolder);
+//         mds.staticInit();
 
-        mds.printState();
+//         //  test  add files
+//         mds.AskMoreFilesForcibly(3);
 
-        // mds.AskMoreFilesForcibly(1);
-
-        // mds.printState();
-
-        vector<fileInfo> writenfile;
-
-        vector<fileInfo> ownedfile;
-
-        Request_MSG requestmsg = {"fzy", 12};
-
-        Return_MSG returnmsg = {"fzy", ownedfile};
-
-       
-        mds.deliverFiles(requestmsg, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-
-        string deligit="  ";
-
-        vector<fileInfo> returnfile;
-        
-        for (fileInfo f : returnmsg.files)
-        {              //mock write
-                f.offset = 100;
-    //            cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
-                returnfile.push_back(fileInfo(f));
-        }
-
-
-        Return_MSG rmsg1 = {"fzy", returnfile};
-
-        mds.updateFilelist(rmsg1);
-
-        Request_MSG requestmsg2 = {"fzy", 20}; 
-        mds.deliverFiles(requestmsg2, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-
-
-        Request_MSG requestmsg3 = {"fzy", 50}; 
-        mds.deliverFiles(requestmsg3, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-
-         Request_MSG requestmsg4 = {"fzy", 500}; 
-        mds.deliverFiles(requestmsg4, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-
-        Request_MSG requestmsg5 = {"fzy", 10000}; 
-        mds.deliverFiles(requestmsg5, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-
-
-        // for(fileInfo  f: returnmsg.files)
-        //          cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
-
-     //   Request_MSG requestmsg3 = {"fzy", 50}; 
-       // mds.deliverFiles(requestmsg3, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
-//         //  double rate = 0.5;
-
-//        // mds.senseCapcity(rate);
-
-//         //  using : 12 
 //         mds.printState();
-  
-   
+
+//         // mds.AskMoreFilesForcibly(1);
+
+//         // mds.printState();
+
+        
+
+//         vector<fileInfo> ownedfile;
+
+//         Request_MSG requestmsg = {"fzy", 12};
+
+//         Return_MSG returnmsg = {"fzy", ownedfile};
+
+//         mds.deliverFiles(requestmsg, returnmsg);
+
+//         string deligit = "  ";
+
+//         vector<fileInfo> returnfile;
+
+//         for (fileInfo f : returnmsg.files)
+//         { //mock write
+//                 f.offset = 100;
+//                 //            cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+//                 returnfile.push_back(fileInfo(f));
+//         }
+
+//         Return_MSG rmsg1 = {"fzy", returnfile};
+
+//         mds.updateFilelist(rmsg1);
+
+//         Request_MSG requestmsg2 = {"fzy", 20};
+//         mds.deliverFiles(requestmsg2, returnmsg);
+
+//         // Request_MSG requestmsg3 = {"fyh", 50};
+//         // mds.deliverFiles(requestmsg3, returnmsg);
+
+//         // Request_MSG requestmsg4 = {"fzy", 500};
+//         // mds.deliverFiles(requestmsg4, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
+
+//         // Request_MSG requestmsg5 = {"fzy", 100};
+//         // mds.deliverFiles(requestmsg5, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
+
+//         // for(fileInfo  f: returnmsg.files)
+//         //          cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+
+//         //   Request_MSG requestmsg3 = {"fzy", 50};
+//         // mds.deliverFiles(requestmsg3, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
+//         double rate = 0.5;
+
+//         //         //  using : 12
+//         //         mds.printState();
+
+//         // test file
+//         mds.migrateFilesToList(mds.restfilelist, mds.usingfilelist);
 
        
-        // test file
-        mds.migrateFilesToList(mds.restfilelist, mds.usingfilelist);
+//         mds.printState();
 
-        mds.printState();
+//         mds.senseCapcity(rate);
 
-        return 0;
-}
+//         vector<fileInfo> recoverfile;
+
+//         client_Recovery_MSG  recover={"fzy",recoverfile};
+
+
+//         cout << "test recovery"<< std::endl;
+
+
+//         mds.Client_Revocer_Help(recover);
+
+//         for(fileInfo  f :recover.ownedFileList)
+//                 cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+
+//         return 0;
+// }

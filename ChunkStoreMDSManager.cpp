@@ -3,137 +3,100 @@
 #include <vector>
 #include <string.h>
 #include <future>
-#include<Windows.h>
+#include <Windows.h>
 #include <thread>
+#include "ChunkStoreMDS.cpp"
 //#include "ChunkStoreMDS.cpp"
-using  namespace std ;
-
-
-
-// class A{
-
-//    public:
-
-//      int i =0;
-
-//      void sayhello(){
-//             // auto incre
-        
-//             while(true)
-//                 {
-//                     std::cout<<"hello  ,world"<<i++<<std::endl;
-
-//                     Sleep(2000);
-//                 }
-//    }
-// };
+using namespace std;
 
 class ChunkStoreMDSManager
 {
 
 public:
+  // static ChunkStoreMDS csMDS;
+  // static ChunkStoreMDS   MDS;
 
+  ChunkStoreMDS *MDS;
 
-     // static ChunkStoreMDS csMDS;
-   // static ChunkStoreMDS   MDS;
+  void bind(ChunkStoreMDS *mds);
 
- static  A a ;
-    void autoAskFiles();
+  // add files times
+  void autoAskFiles(ChunkStoreMDS* MDS ,int duration );
+};
 
+void ChunkStoreMDSManager::bind(ChunkStoreMDS *mds)
+{
 
+  MDS = mds;
 
-    //
-    // bool Caa::init()
-    // {
-    //     // 设置回调函数
-    //     // 需要将成员函数的this指针传入
-    //     // 需要将类成员函数地址强制转换为回调函数类型
-    //     setCBTest((ptestCB)&Caa::onmyevent,this);
-    //     return true;
-    // }
-    // // 回调函数
-    // int Caa::onmyevent(testMsgType *  p,void* aa)
-    // {
-    //     // 将回调回来的指针强制转换为类指针，然后调用类的成员函数
-    //     ((CEventMgmt*)aa)->dealCB(p);
-    //     return 0;
-    // }
-    // // 业务处理函数
-    // int Caa::dealCB(testMsgType* p)
-    // {
-    //       return 0;
+  cout << "binding mds ..." << std::endl;
 };
 
 
-A ChunkStoreMDSManager::a;
+int i=5;
+// enable  new thread to  call autoAskFiles ;
+void ChunkStoreMDSManager::autoAskFiles(ChunkStoreMDS* MDS ,int duration)
+{
 
+  while (true)
+  {
+     cout << "hello world ..." << std::endl;  
 
-// using windowsAPI timer 
-VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTime); 
-
-VOID   CALLBACK   TimerProc(HWND   hwnd,UINT   uMsg,UINT   idEvent,DWORD   dwTime) 
-
-{ 
-      ChunkStoreMDSManager m;
-      m.a.sayhello();
-} 
-
-
-// new threa autoAskFiles ;
-
-void ChunkStoreMDSManager::autoAskFiles(){
-    
-    int timer1 = 1;
-    HWND hwndTimer;
-    MSG msg;
-
-    // 调用另一个对象的方法
-    
-    // SetTimer(NULL, timer1, 2000, TimerProc);
-
-    // int itemp;
-
-    // while ((itemp = GetMessage(&msg, NULL, NULL, NULL)) && (itemp != 0) && (-1 != itemp))
-    // {
-    //     if (msg.message == WM_TIMER)
-    //     {
-    //         std::cout << "i  got  the  message " << std::endl;
-    //         TranslateMessage(&msg);
-    //         DispatchMessage(&msg);
-    //     }
-    // }
+     _sleep(3000);
    
-  
+
+    // this_thread::sleep_for(chrono::milliseconds(1000));
+    
+    if (MDS == nullptr)
+    {
+      cout << "binding mds failed..." << std::endl;
+      return;
+    }
+
+    (*MDS).AskMoreFilesTimely();
+
+    cout << "auto adding files ..." << std::endl;
+
+    
+  }
 }
 
-void print(){
-
-while(true){
-    cout<<"hello  exhcange"<<std::endl;
-    Sleep(4000);
-}
-}
-
+// compile cmd  g++  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDSManager.cpp    C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp  -o test
 
 int main()
 {
-   
-     A  a;
+  ChunkStoreMDS MDS;
 
-     thread   t(&A::sayhello,a);
-     
-     std::thread  t3(print);
-     t.join();
+  MDS.staticInit();
 
-  
-   // std::thread  t(&ChunkStoreMDSManager::autoAskFiles,m);
+  ChunkStoreMDSManager manager;
+
+  manager.bind(&MDS);
+
+  (*manager.MDS).AskMoreFilesTimely();
+
+  // cannot  ensure automatic   and it must  be called by a new thread  but not main thread 
+  thread  t1(&ChunkStoreMDSManager::autoAskFiles,manager,&MDS,2);
+ 
+  thread  t2(&ChunkStoreMDS::printState,manager.MDS);
+
+
+  // mock the data ops time 
+  Sleep(10000);
+  //std::thread t1(&ChunkStoreMDSManager::autoAskFiles, manager, 1);
+
+ thread  t3(&ChunkStoreMDS::printState,manager.MDS);
+ 
+  t1.join();
+  t2.join();
+  t3.join();
+  // t1.detach();
+
+  //(*manager.MDS).printState();
+
+  // std::thread  t(&ChunkStoreMDSManager::autoAskFiles,m);
 
   //  t.join();
-  
 
-    t3.join();
-
-
-    
-    return 0;
+  return 0;
 }

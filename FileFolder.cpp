@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include "DiskScanner.h"
-#include "FileInfoScan.cpp"
 using namespace std;
 
 class fileFolder
