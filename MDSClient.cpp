@@ -111,44 +111,48 @@ void testThreadCall(int clientnum,ChunkStoreMDS* mds){
  //g++  C:\Users\t-zhfu\Documents\InternPJ\MDSClient.cpp   C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp -o test
 int main(){
 
-
         ChunkStoreMDS  mds ;
         mds.staticInit();
 
-        testThreadCall(2,&mds);
-        // MDSClient  client("fzy");
+        //testThreadCall(2,&mds);
+        MDSClient  client("fzy");
 
         
-        // MDSClient  client1("fyh");
+        MDSClient  client1("fyh");
 
         
-        // MDSClient  client2("jdj");
+        MDSClient  client2("jdj");
         
         
-        // client.bindMDS(&mds);
-        // client1.bindMDS(&mds);
-        // client2.bindMDS(&mds);
-
-    
+        client.bindMDS(&mds);
+        client1.bindMDS(&mds);
+        client2.bindMDS(&mds);
 
         // thread t1(&MDSClient::RequestFiles,client,20);
         // thread t2(&MDSClient::RequestFiles,client1,20);
         // thread t3(&MDSClient::RequestFiles,client2,30);
         // thread t4(&MDSClient::RequestFiles,client,30);
 
-        // client1.RequestFiles(20);
-        // client2.RequestFiles(20);
-        // client.RequestFiles(20);
+        client1.RequestFiles(5);
+        client2.RequestFiles(5);
+        client.RequestFiles(5);
+
+        mds.printState();
+        
+        mds.cacheSerialize();
+
+        mds.clearForRecoverTest();
+
+        
+        mds.MDSrecover();
         // t1.join();
         // t2.join();
         // t3.join();
         // t4.join();
 
-
         mds.printState();
 
         return 0;
-
 }
 
 

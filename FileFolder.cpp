@@ -9,11 +9,13 @@ class fileFolder
 {
 
 private:
-    // cache path
-    string cacheTxtPath;
-
+    
+    
 public:
     DiskScanner filescanner;
+    
+    // cache path
+    string cacheTxtPath;
 
     // file name space
     std::vector<std::string> files;
@@ -107,13 +109,15 @@ public:
     {
         cacheTxtPath = s; 
     }
-
-
+    
     // "write catch"
-    void cache(){
+    void cache(string catchPath){
         
         std::ofstream location_out;
-		location_out.open(cacheTxtPath, std::ios::out | std::ios::app);
+
+        string path =catchPath.compare("")==0?cacheTxtPath:catchPath;
+
+		location_out.open(path, std::ios::out);
 
         if(location_out.is_open())
         {
@@ -121,24 +125,54 @@ public:
             for(string s:files)
                 location_out<<s<<endl;
 
-	        cout<<"cache builds in  :"<<cacheTxtPath<<std::endl;
+	        cout<<"cache builds in  :"<<path<<std::endl;
             return;
         }
 
-        cout<<"cache file cannot be opened  :"<<cacheTxtPath<<std::endl;
-	
+        else 
+              cout<<"cache file cannot be opened  :"<<path<<std::endl;
+        
+
+        location_out.close();
+
+        // cout<<"cur path  :"<<path<<std::endl;
+        // cout<<"cur cachepath  :"<<cacheTxtPath<<std::endl;
+
     }
 
     void recover(){
 
+    cout<<"filefholder  recover begins ...."<<std::endl;
+
+    if(cacheTxtPath.compare("")==0)
+            {
+                cout<<"cache file has not been inited  :"<<std::endl;
+                return;
+            }
+            
+  //  cout<<"cur cachepath  :"<<cacheTxtPath<<std::endl;
+    ifstream file(cacheTxtPath, ios::in);
+
+	if (!file.is_open())
+	{
+		cout << "file open fails " << endl;
+		return;
+	}
+
+ 	string line;
+
+	while (file >> line)
+
+		files.push_back(line);
+	
+	file.close();
+
+    cout<<"filefholder  recover completely ...."<<std::endl;
 
     }
- 
 };
 
 //set fileAdded begin idx
-
-
 // int main(){
 //      DiskScanner  diskscannaer;
 

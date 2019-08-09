@@ -15,7 +15,6 @@
 
 using namespace std;
 
-
 struct fileInfo
 {
 
@@ -138,9 +137,6 @@ public:
         */
         void HolderAutoUpdate();
 
-        //fileholder recovers from crash ,and test using a specific files.txt ;
-        void fileHolderRecover();
-
         // ask for more files forcibly in senerior which  rest files cannot meet the needs and timely-askFiles has not started
         void AskMoreFilesForcibly(int rate);
 
@@ -158,6 +154,13 @@ public:
 
         //cacheSerialize  using self-parse policy
         void cacheSerialize();
+
+        // recover MDS object from the cache files;
+        //fileholder recovers from crash ,and test using a specific files.txt ;
+        void MDSrecover();
+
+        // recovery internal parse file
+        void InternalParseFile(vector<string> &parseresult);
 
         // just for test
         void Client_Revocer_Help(client_Recovery_MSG &msg);
@@ -192,12 +195,13 @@ void ChunkStoreMDS::staticInit()
         // logical folder
         fileFolder ffolder(diskscannaer);
 
-        //cache
-        ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
+        //if cached here   we cannot modify its value
+        //   ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\Cache\\ffolder.txt");
 
         // ChunkStoreMDS mds;
         staticInitInternal(ffolder);
 }
+
 // init ffolder to restFilelist
 //  ffolder  settting complete
 void ChunkStoreMDS::staticInitInternal(fileFolder &ffolder)
@@ -414,7 +418,7 @@ void ChunkStoreMDS::AskMoreFilesForcibly(int rate)
 
 // for windows timer call
 void ChunkStoreMDS::AskMoreFilesTimely()
-{       
+{
         // get more files in folder
         fholder.createMoreFile(deafult_Asking_File_Size);
 
@@ -434,7 +438,6 @@ void ChunkStoreMDS::AskMoreFilesTimely()
 //   public interface for MDSclient call
 void ChunkStoreMDS::deliverFiles(Request_MSG &msg, Return_MSG &return_msg)
 {
-
         //  BALANCE_POLICY  can be setted dynamically
         deliverFilesInternal(msg, return_msg, BALANCE_POLICY::STORAGE_SIZE);
 }
@@ -494,7 +497,7 @@ void ChunkStoreMDS::deliverFilesInternal(Request_MSG &msg, Return_MSG &return_ms
                                         break;
                                 }
                         }
-
+                        else
                         {
                                 // markusing
                                 restfilelist[i].owner = msg.owner;
@@ -519,9 +522,9 @@ void ChunkStoreMDS::deliverFilesInternal(Request_MSG &msg, Return_MSG &return_ms
                         }
                 }
 
-                //asking more files
-
+                //update filelistsize
                 usingFileSize += msg.fileNum;
+                restFileSize -= msg.fileNum;
 
                 printf("deliver files to %s completed  \r\n", msg.owner);
 
@@ -571,46 +574,156 @@ void ChunkStoreMDS::senseCapcity(double rest_rate)
 //recover model
 void ChunkStoreMDS::cacheSerialize()
 {
+
+        cout << "cache ChunkStoreMDS begins.......  :" << std::endl;
+
+        //  fholder cache ,we must provider the logical folder func so we must recover the folder  not just the restfilelist and usingfilelist
+
+        std::string fholdercachePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\Cache\\fholderCacheText.txt";
+
+        cout << "cache fileholder begins.......  :" << std::endl;
+
+        //配置cache路径
+        fholder.EnsureRecovery(fholdercachePath);
         // to do
-        // std::string  defalutcachePath="D:\\cache";
 
-        // string  path=cachePath.compare("")==0?defalutcachePath:cachePath;
+        fholder.cache(fholdercachePath);
 
-        // printf("current cache path:  %s  \r\n",path);
+        std::string defalutcachePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\Cache\\MDScache.txt";
 
-        // // serialize
-        // std::ofstream location_out;
-        // 	location_out.open(path, std::ios::out | std::ios::app);
+        string path = cachePath.compare("") == 0 ? defalutcachePath : cachePath;
 
-        // //  fholder .serilize
-        // fholder.EnsureRecovery("D:\\cache");
+        ofstream file(path, ios::out);
+        if (!file.is_open())
+        {
+                cout << "cache file cannot be opened  ,please try agian with the correct path   :" << path << std::endl;
+                return;
+        }
 
-        // // //  fholder.recover
-        // // if(fholder.files.size()==0)
-        // //         fholder.recover();
+        // roll back to the last version memory
+        //  we  need not to clarify the filelist type ,and when recovery happens ,we will parse the file and put it in restfiles and then call migrateflies ;
+        for (fileInfo temp : usingfilelist)
+                file << temp.filepath << "-" << temp.Beusing << "-" << temp.owner << "-" << temp.offset << "-"
+                     << "q" << std::endl;
 
-        // if(location_out.is_open())
-        // {
-        //     for(fileInfo  f : restfilelist)
-        //         //format   filepath-beusing-owner-size();
-        //         location_out<<<<endl;
+        for (fileInfo temp : restfilelist)
+                file << temp.filepath << "-" << temp.Beusing << "-" << temp.owner << "-" << temp.offset << "-"
+                     << "q" << std::endl;
 
-        //     cout<<"cache builds in  :"<<path<<std::endl;
-        //     return;
-        // }
+        cout << "MDS cache builds in  :" << path << std::endl;
 
-        // cout<<"cache file cannot be opened  :"<<cacheTxtPath<<std::endl;
+        file.close();
 }
 
-void ChunkStoreMDS::fileHolderRecover()
+void ChunkStoreMDS::MDSrecover()
 {
-        // to do
+        // diy recover
+
+        cout << "MDSrecover begins ......." << std::endl;
+        fholder.recover();
+
+        vector<string> parseresult;
+
+        InternalParseFile(parseresult);
+
+        // specific fileinfo format :   "a-0-fzy-0-q";
+        while (!parseresult.empty())
+        {
+                // format path ,beusing ,owner ,offset
+                long offset = atoi(parseresult.back().c_str());
+                parseresult.pop_back();
+
+                char *owner = const_cast<char *>(parseresult.back().c_str());
+                parseresult.pop_back();
+
+                bool beusing = parseresult.back().compare("1") == 0 ? true : false;
+                parseresult.pop_back();
+
+                string path = parseresult.back();
+                parseresult.pop_back();
+
+                fileInfo temp = {path, beusing, owner, offset};
+
+                // to recover filelist based on type
+                if (temp.Beusing)
+                        usingfilelist.push_back(temp);
+                else
+                        restfilelist.push_back(temp);
+        }
+        cout << "MDSrecover completed ......." << std::endl;
 }
 
-void clearForRecoverTest()
+void RecoverInternalparse(string str, vector<string> &parseresult)
 {
 
+        int beginidx = 0;
+        int pos = 0;
+        int size = str.size();
+
+        // if str is null retrun ;
+        for (int i = 0; i < size; i++)
+        {
+
+                //	cout<<"current parsed char : "<<str[i]<<std::endl;
+
+                if (str[i] == '-')
+                {
+                        pos = i;
+
+                        std::string s = str.substr(beginidx, i - beginidx);
+
+                        parseresult.push_back(s);
+                        //cout<<s<<std::endl;
+
+                        beginidx = pos + 1;
+                }
+
+                if (str[i] == 'q')
+                        return;
+        }
+}
+
+void ChunkStoreMDS::clearForRecoverTest()
+{
+
+        // cout << "befor clear   fholder  filepath :" << std::endl;
+
+        // for (string s : fholder.files)
+        //         cout << s << std::endl;
+
+        fholder.files.clear();
+        usingfilelist.clear();
+        restfilelist.clear();
         // restfileli
+}
+void ChunkStoreMDS::InternalParseFile(vector<string> &parseresult)
+{
+
+        std::string defalutcachePath = "D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\Cache\\MDScache.txt";
+
+        string path = cachePath.compare("") == 0 ? defalutcachePath : cachePath;
+
+        ifstream file(path, ios::in);
+        if (!file.is_open())
+        {
+                cout << "MDScache file open fails" << endl;
+                return;
+        }
+
+        string line;
+
+        //读取文件3种方式
+        //1、read  file.eof() 作为判断条件 会慢一拍
+        while (file >> line)
+        //while (!file.eof())
+        {
+                //file.read(temp, 1024); //这样会读取到\n
+                //cout << temp
+                RecoverInternalparse(line, parseresult);
+                // >>按行读取，不会读换行符
+                //cout << temp << endl;
+        }
+        file.close();
 }
 
 // to receive client info and update  and lock the thread
@@ -628,7 +741,6 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
 
         for (fileInfo finfo : msg.files)
         {
-                /* code */
                 ModifyFileinfo(finfo.filepath, fpos);
 
                 if (fpos.idx != -1)
@@ -664,14 +776,12 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
 void ChunkStoreMDS::Client_Revocer_Help(client_Recovery_MSG &msg)
 {
 
-        
-
         for (fileInfo finfo : usingfilelist)
         {
-                // to decrease the string compare op times 
+                // to decrease the string compare op times
                 if (finfo.Beusing)
                 {
-                      if (strcmp(msg.owner, finfo.owner) == 0)
+                        if (strcmp(msg.owner, finfo.owner) == 0)
                                 // the last call state and may casue  inconsistency
                                 msg.ownedFileList.push_back(fileInfo(finfo));
                 }
@@ -692,12 +802,13 @@ void ChunkStoreMDS::Client_Revocer_Help(client_Recovery_MSG &msg)
 
 int DiskScanner::curAddedFilenum = 0;
 
+string ChunkStoreMDS::cachePath = "";
 // // unit test
 // int main()
 // {
 
-//         // compile cmd g++  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDSManager.cpp  C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDS.cpp C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp   C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp  -o test
-
+//         // compile cmd g++    C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDS.cpp C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp   C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp  -o test
+//         //C:\Users\t-zhfu\Documents\InternPJ\ChunkStoreMDSManager.cpp
 //         //g++  F:\InternPj\InternPJ\ChunkStoreMDS.cpp  F:\InternPj\InternPJ\DiskScanner.cpp  F:\InternPj\InternPJ\FileFolder.cpp -o test
 
 //         // DiskScanner diskscannaer;
@@ -722,37 +833,35 @@ int DiskScanner::curAddedFilenum = 0;
 
 //         mds.printState();
 
-//         // mds.AskMoreFilesForcibly(1);
+//         //  mds.AskMoreFilesForcibly(1);
 
-//         // mds.printState();
+//         // // mds.printState();
 
-        
+//         // vector<fileInfo> ownedfile;
 
-//         vector<fileInfo> ownedfile;
+//         // Request_MSG requestmsg = {"fzy", 12};
 
-//         Request_MSG requestmsg = {"fzy", 12};
+//         // Return_MSG returnmsg = {"fzy", ownedfile};
 
-//         Return_MSG returnmsg = {"fzy", ownedfile};
+//         // mds.deliverFiles(requestmsg, returnmsg);
 
-//         mds.deliverFiles(requestmsg, returnmsg);
+//         // string deligit = "  ";
 
-//         string deligit = "  ";
+//         // vector<fileInfo> returnfile;
 
-//         vector<fileInfo> returnfile;
+//         // for (fileInfo f : returnmsg.files)
+//         // { //mock write
+//         //         f.offset = 100;
+//         //         //            cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+//         //         returnfile.push_back(fileInfo(f));
+//         // }
 
-//         for (fileInfo f : returnmsg.files)
-//         { //mock write
-//                 f.offset = 100;
-//                 //            cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
-//                 returnfile.push_back(fileInfo(f));
-//         }
+//         // Return_MSG rmsg1 = {"fzy", returnfile};
 
-//         Return_MSG rmsg1 = {"fzy", returnfile};
+//         // mds.updateFilelist(rmsg1);
 
-//         mds.updateFilelist(rmsg1);
-
-//         Request_MSG requestmsg2 = {"fzy", 20};
-//         mds.deliverFiles(requestmsg2, returnmsg);
+//         // Request_MSG requestmsg2 = {"fzy", 20};
+//         // mds.deliverFiles(requestmsg2, returnmsg);
 
 //         // Request_MSG requestmsg3 = {"fyh", 50};
 //         // mds.deliverFiles(requestmsg3, returnmsg);
@@ -770,29 +879,40 @@ int DiskScanner::curAddedFilenum = 0;
 //         // mds.deliverFiles(requestmsg3, returnmsg, BALANCE_POLICY::STORAGE_SIZE);
 //         double rate = 0.5;
 
-//         //         //  using : 12
-//         //         mds.printState();
+//         // //         //  using : 12
+//         // //         mds.printState();
 
 //         // test file
-//         mds.migrateFilesToList(mds.restfilelist, mds.usingfilelist);
+//         // mds.migrateFilesToList(mds.restfilelist, mds.usingfilelist);
 
-       
-//         mds.printState();
+//         // mds.printState();
+
+//         mds.cacheSerialize();
 
 //         mds.senseCapcity(rate);
 
-//         vector<fileInfo> recoverfile;
+//         // vector<fileInfo> recoverfile;
 
-//         client_Recovery_MSG  recover={"fzy",recoverfile};
+//         // client_Recovery_MSG  recover={"fzy",recoverfile};
 
+//         // cout << "test recovery"<< std::endl;
 
-//         cout << "test recovery"<< std::endl;
+//         // mds.Client_Revocer_Help(recover);
 
+//         // for(fileInfo  f :recover.ownedFileList)
+//         //         cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+//         cout << mds.fholder.files.size() << std::endl;
 
-//         mds.Client_Revocer_Help(recover);
+//         mds.clearForRecoverTest();
 
-//         for(fileInfo  f :recover.ownedFileList)
-//                 cout << f.filepath <<deligit<< f.Beusing <<deligit<< f.offset <<deligit<< f.owner << std::endl;
+//         mds.MDSrecover();
+
+//         mds.printState();
+
+//         for (string s : mds.fholder.files)
+//                 cout << s << std::endl;
+
+//         cout << mds.fholder.files.size() << std::endl;
 
 //         return 0;
 // }
