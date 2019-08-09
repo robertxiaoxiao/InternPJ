@@ -64,7 +64,11 @@ void MDSClient::RequestFiles(int filesize ){
 
             Request_MSG   request_msg={clientname,filesize};
 
-            Return_MSG   writenfiles={clientname,localFilelist};
+            Return_MSG   writenfiles;
+
+            writenfiles.owner=clientname;
+            // it passed by reference and not modified by mdsserver
+            writenfiles.files=localFilelist;
 
             if(MDS==NULL)
                 {printf("client: %s   binds MDSserver  failed   \r\n", clientname );
@@ -74,14 +78,23 @@ void MDSClient::RequestFiles(int filesize ){
             // it should be internal interface based on balancy policy 
             (*MDS).deliverFiles(request_msg,writenfiles);
 
+            // add file to localfiles   and it cannot be passed by value ;
+            for(fileInfo  f :writenfiles.files)
+                localFilelist.push_back(f);
+
+
             printf("client: %s   has received  %d  files   successfully.....  \r\n", clientname , request_msg.fileNum);
+
+         //   cout<<"curretn localfilesize :"<<localFilelist.size()<<std::endl;
+
 
 }
 
 
 void   MDSClient::ReturnFile(){
 
-         Return_MSG   updatefiles_MSG={clientname,unusedfile};
+        // to do : to return the unused file 
+         Return_MSG   updatefiles_MSG={clientname,localFilelist};
 
         (*MDS).updateFilelist(updatefiles_MSG);
 
@@ -109,7 +122,7 @@ void testThreadCall(int clientnum,ChunkStoreMDS* mds){
 }
 
  //g++  C:\Users\t-zhfu\Documents\InternPJ\MDSClient.cpp   C:\Users\t-zhfu\Documents\InternPJ\DiskScanner.cpp C:\Users\t-zhfu\Documents\InternPJ\FileFolder.cpp -o test
-int main(){
+ int main(){
 
         ChunkStoreMDS  mds ;
         mds.staticInit();
@@ -136,15 +149,18 @@ int main(){
         client1.RequestFiles(5);
         client2.RequestFiles(5);
         client.RequestFiles(5);
+        client.ReturnFile();
 
-        mds.printState();
+        // mds.migrateFilesToList(mds.restfilelist,mds.usingfilelist);
+
+        // mds.printState();
         
-        mds.cacheSerialize();
+        // mds.cacheSerialize();
 
-        mds.clearForRecoverTest();
+        // mds.clearForRecoverTest();
 
         
-        mds.MDSrecover();
+        // mds.MDSrecover();
         // t1.join();
         // t2.join();
         // t3.join();

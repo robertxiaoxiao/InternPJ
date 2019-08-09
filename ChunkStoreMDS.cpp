@@ -737,8 +737,9 @@ void ChunkStoreMDS::updateFilelist(Return_MSG msg)
         //  update mds fileinfo  according to client_return_msg
         // vector<fileInfo> &writenFiles = msg.files;
 
-        filepos fpos = filepos{false, -1};
-
+        //filepos fpos = filepos{false, -1};
+        filepos fpos;
+        
         for (fileInfo finfo : msg.files)
         {
                 ModifyFileinfo(finfo.filepath, fpos);
