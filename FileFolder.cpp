@@ -170,13 +170,13 @@ public:
     cout<<"filefholder  recover completely ...."<<std::endl;
 
     }
-};
+};                                                            
 
 //set fileAdded begin idx
 // int main(){
 //      DiskScanner  diskscannaer;
 
-//      string filePath[1]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
+//     string filePath[2]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
 
 //     for(string s :filePath)
 //         diskscannaer.setPath(s);
@@ -190,21 +190,21 @@ public:
 
 //         ffolder.listFiles();
 
-//         ffolder.createMoreFile(5);
+//         // ffolder.createMoreFile(5);
 
-//          cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-//           cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
-
-
-//         ffolder.cache();
-
-//         ffolder.createMoreFile(5);
+//         //   cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+//         //   cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
 
 
-//         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-//         cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+//         // ffolder.cache();
 
-//         ffolder.listFiles();
+//         // ffolder.createMoreFile(5);
+
+
+//         // cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+//         // cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+
+//         // ffolder.listFiles();
         
 
 // return 0;

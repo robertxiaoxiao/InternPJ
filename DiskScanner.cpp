@@ -188,7 +188,9 @@ void DiskScanner::GetAllFormatFiles(vector<string>& files,string format){
  
 
 
-// int DiskScanner::curAddedFilenum=0;
+//int DiskScanner::curAddedFilenum=0;
+
+
 // // test 
 // int main(){
 

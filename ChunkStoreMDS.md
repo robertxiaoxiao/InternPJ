@@ -113,7 +113,18 @@ int main(){
       1. 要文件是根据rate要的，可以配置
       2. 增加文件都是从filesize末尾增加的，askfiles更新时直接从上一次的末尾更新
       3. restfiles  usingfiles分离读写，更倾向于restfiles分配文件，更新的时候更倾向于usingfiles 还可以更优化、
-      4. 
+
+
+加锁并发分析:
+      当前并发资源     restfilelist    usingfilelist  
+
+
+
+      askingflie()
+
+
+      mds   sensecapicilty ;
+
 
 
 
