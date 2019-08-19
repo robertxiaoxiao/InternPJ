@@ -55,8 +55,11 @@ void ChunkStoreMDSManager::autoAskFiles(ChunkStoreMDS* MDS ,int duration)
 
     (*MDS).AskMoreFilesTimely();
 
-    cout << "auto adding files ..." << std::endl;
 
+    
+
+    cout << "auto adding files ..." << std::endl;
+    (*MDS).printState();
     
   }
 }
@@ -82,10 +85,9 @@ int main()
 
 
   // mock the data ops time 
-  Sleep(10000);
+  Sleep(1000);
   //std::thread t1(&ChunkStoreMDSManager::autoAskFiles, manager, 1);
-
- thread  t3(&ChunkStoreMDS::printState,manager.MDS);
+ //thread  t3(&ChunkStoreMDS::printState,manager.MDS);
  
   t1.join();
   t2.join();

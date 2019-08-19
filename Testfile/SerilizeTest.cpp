@@ -129,7 +129,6 @@ int main()
 	stringreadFile(parseresult);
 	for(string s :parseresult)
 			cout<<s<<std::endl;
-
 	// vector<fileInfo>  result;
 
 	// while(!parseresult.empty())
