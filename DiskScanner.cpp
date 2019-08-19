@@ -10,9 +10,7 @@
 #include "Windows.h"
 #include <fstream>
 
-#include "FileInfoScan.cpp"
 #include "DiskScanner.h"
-
 
 using namespace std;
 /*
@@ -186,52 +184,50 @@ void DiskScanner::GetAllFormatFiles(vector<string>& files,string format){
 
 }
  
-
-
-// int DiskScanner::curAddedFilenum=0;
+int DiskScanner::curAddedFilenum=0;
 // // test 
-// int main(){
+int main(){
 
-//     // for test 
-//   //  string filePath[2]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{EDD7F05F-1349-49E0-9924-14E8275D98AD}.ddp\\Data"};  
+    // for test 
+  //  string filePath[2]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{EDD7F05F-1349-49E0-9924-14E8275D98AD}.ddp\\Data"};  
 
-//  	string filePath[3]={"D:\\BlobServiceData","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{E1B5B274-9511-4832-B8AF-4A8D4B826C8C}.ddp\\Data"};
+ 	string filePath[3]={"D:\\BlobServiceData","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore","D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore\\{E1B5B274-9511-4832-B8AF-4A8D4B826C8C}.ddp\\Data"};
 
-//     std::cout<<"test starts ......"<<std::endl;
+    std::cout<<"test starts ......"<<std::endl;
     
-//     //FileInfoScan  scanner=DiskScanner();
-// 	DiskScanner  scanner;
+    //FileInfoScan  scanner=DiskScanner();
+	DiskScanner  scanner;
 
-//     // for(string s :filePath)
-//    	// 	 scanner.setPath(s);
-
-
-// 	vector<string> files;  
+    // for(string s :filePath)
+   	// 	 scanner.setPath(s);
 
 
-// 	scanner.createFiles(5,files);
+	vector<string> files;  
+
+
+	scanner.createFiles(5,files);
  
-// 	//读取所有的文件，包括子文件的文件
-// 	//GetAllFiles(filePath, files);
+	//读取所有的文件，包括子文件的文件
+	//GetAllFiles(filePath, files);
  
-// 	//读取所有格式为ccc的文件
-// 	string format = ".ccc";
+	//读取所有格式为ccc的文件
+	string format = ".ccc";
 
 
-// 	// added twice
-// 	scanner.createFiles(5,files);
+	// added twice
+	scanner.createFiles(5,files);
 	
 
-// 	cout<<"added file over "<<std::endl;
+	cout<<"added file over "<<std::endl;
 
-//   	scanner.GetAllFormatFiles(files,format);
+  	scanner.GetAllFormatFiles(files,format);
 	
 	
-//     for(string s: files)
-//         cout<<s<<std::endl;
+    for(string s: files)
+        cout<<s<<std::endl;
 
-// 	return 0;
+	return 0;
      
 
-// }
+}
  

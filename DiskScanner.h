@@ -8,13 +8,12 @@
 #include <string>
 #include "Windows.h"
 #include <fstream>
-#include "FileInfoScan.cpp"
 
 
 //千万不要忘记 这一句！！！！！！！
 using namespace std;
 
-class DiskScanner : public FileInfoScan 
+class DiskScanner 
 {
     public :
 

@@ -2,32 +2,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "DiskScanner.h"
+#include "FileFolder.h"
+
 using namespace std;
 
-class fileFolder
-{
-
-private:
-    
-    
-public:
-    DiskScanner filescanner;
-    
-    // cache path
-    string cacheTxtPath;
-
-    // file name space
-    std::vector<std::string> files;
-
-    // last modified position
-    int lastModifiedsize;
-    fileFolder(){
-
-    }
-
-
-    fileFolder(DiskScanner fileScanner)
+    fileFolder::fileFolder(DiskScanner fileScanner)
     {
 
         filescanner = fileScanner;
@@ -37,21 +16,21 @@ public:
         lastModifiedsize = filescanner.curAddedFilenum;
     };
 
-    ~fileFolder()
+    fileFolder::~fileFolder()
     {
         // manual destruct
         files.clear();
     };
 
     // print ctrl files
-    void listFiles()
+    void fileFolder::listFiles()
     {
         for (auto i = 0; i < files.size(); i++)
             cout << "file_" << i << ":   " << files.at(i) << std::endl;
     };
 
     // create file ;
-    void createMoreFile(int filenum)
+    void fileFolder::createMoreFile(int filenum)
     {
         filescanner.createFiles(filenum, files);
 
@@ -64,21 +43,21 @@ public:
     };
 
     // just for test recovery
-    void clearFiles()
+    void fileFolder::clearFiles()
     {
         files.clear();
     }
 
 
     // add file ;
-    void addFile(std::string file)
+    void fileFolder::addFile(std::string file)
     {
         files.push_back(file);
         cout << "successfully add file :" << file << std::endl;
     };
 
     // delete file;
-    void deleteFile(std::string filename)
+    void fileFolder::deleteFile(std::string filename)
     {
         int i = checkFileContained(filename);
 
@@ -93,7 +72,7 @@ public:
     };
 
     //  check if file in fileFolder
-    int checkFileContained(string filename)
+    int fileFolder::checkFileContained(string filename)
     {
 
         for (auto i = 0; i < files.size(); i++)
@@ -105,13 +84,13 @@ public:
 
 
     // 配置恢复路径
-    void EnsureRecovery(string s)
+    void fileFolder::EnsureRecovery(string s)
     {
         cacheTxtPath = s; 
     }
     
     // "write catch"
-    void cache(string catchPath){
+    void fileFolder::cache(string catchPath){
         
         std::ofstream location_out;
 
@@ -140,7 +119,7 @@ public:
 
     }
 
-    void recover(){
+    void fileFolder::recover(){
 
     cout<<"filefholder  recover begins ...."<<std::endl;
 
@@ -170,43 +149,43 @@ public:
     cout<<"filefholder  recover completely ...."<<std::endl;
 
     }
-};
+
 
 //set fileAdded begin idx
-// int main(){
-//      DiskScanner  diskscannaer;
+int main(){
+     DiskScanner  diskscannaer;
 
-//      string filePath[1]= {"D:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
+     string filePath[1]= {"C:\\BlobServiceData\\TestPartition\\BlockBlob\\ChunkStore"};  
 
-//     for(string s :filePath)
-//         diskscannaer.setPath(s);
+    for(string s :filePath)
+        diskscannaer.setPath(s);
 
-//         // logical folder 
-//         fileFolder ffolder(diskscannaer);
+        // logical folder 
+        fileFolder ffolder(diskscannaer);
  
-//         //cache
-//         ffolder.EnsureRecovery("D:\\BlobServiceData\\TestPartition\\cache.txt");
+        //cache
+        ffolder.EnsureRecovery("C:\\BlobServiceData\\TestPartition\\cache.txt");
 
 
-//         ffolder.listFiles();
+        ffolder.listFiles();
 
-//         ffolder.createMoreFile(5);
+        ffolder.createMoreFile(5);
 
-//          cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-//           cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
-
-
-//         ffolder.cache();
-
-//         ffolder.createMoreFile(5);
+         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+          cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
 
 
-//         cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
-//         cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+        ffolder.cache();
 
-//         ffolder.listFiles();
+        ffolder.createMoreFile(5);
+
+
+        cout<<"current file  addID  :"<<ffolder.filescanner.curAddedFilenum<<std::endl;
+        cout<<"last modified position  :"<<ffolder.lastModifiedsize<<std::endl;
+
+        ffolder.listFiles();
         
 
-// return 0;
+return 0;
 
-// }
+}
